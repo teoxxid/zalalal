@@ -7,6 +7,9 @@
 marketplace/
 ├── backend/ # Django бэкенд
 ├── frontend/ # React фронтенд
+├── .flake8 # Конфиг линтера
+├── .pre-commit-config.yaml
+├── pyproject.toml # Конфиг Black
 ├── docker-compose.yml
 └── README.md
 ```

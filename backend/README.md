@@ -12,28 +12,30 @@
 
 ## Структура проекта
 ```
-marketplace/
-├── backend/ # Бэкенд
-│ ├── main/ # Основное приложение
-│ │ ├── migrations/ # Миграции БД
-│ │ ├── static/ # CSS и статика
-│ │ ├── templates/ # HTML шаблоны
-│ │ ├── admin.py
-│ │ ├── apps.py
-│ │ ├── models.py # Модели данных
-│ │ ├── serializers.py # API сериализаторы
-│ │ ├── urls.py # Маршруты приложения
-│ │ └── views.py # Контроллеры
-│ ├── marketplace/ # Настройки Django
-│ │ ├── settings.py
-│ │ └── urls.py
-│ ├── manage.py
-│ ├── requirements.txt
-│ ├── .env
-│ └── Dockerfile
-├── frontend/ # Фронтенд
-├── docker-compose.yml
-└── README.md
+backend/
+├── main/                          # Основное приложение
+│   ├── migrations/                # Миграции БД
+│   ├── static/                    # CSS и статика
+│   ├── templates/                 # HTML шаблоны
+│   ├── admin.py
+│   ├── apps.py
+│   ├── models.py                  # Модели данных
+│   ├── serializers.py             # API сериализаторы
+│   ├── urls.py                    # Маршруты приложения
+│   └── views.py                   # Контроллеры
+├── marketplace/                   # Настройки Django
+│   ├── settings.py
+│   └── urls.py
+├── venv/                          # Виртуальное окружение
+├── .env                           # Переменные окружения (секреты)
+├── .env.example                   # Пример переменных окружения
+├── .gitignore                     # Игнорируемые файлы
+├── db.sqlite3                     # SQLite БД (для разработки)
+├── Dockerfile                     # Образ для Docker
+├── manage.py                      # Управление Django
+├── README.md                      # Документация
+├── requirements.txt               # Зависимости Python
+└── settings.py                    # (дубликат? возможно, лишний)
 ```
 
 ## Установка и запуск

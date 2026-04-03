@@ -10,23 +10,25 @@
 - **Контейнеризация:** [Docker](https://www.docker.com/)
 
 ## Структура проекта
+
 ```
 frontend/
-├── public/ # Статические файлы
+├── public/                      # Статические файлы
 ├── src/
-│ ├── services/ # API-клиенты
-│ │ └── api.ts # Axios настройки
-│ ├── App.tsx # Главный компонент
-│ ├── main.tsx # Точка входа
-│ └── vite-env.d.ts # Типы окружения
-├── .env.example # Пример переменных окружения
-├── .eslintrc.cjs # Конфиг ESLint
-├── .prettierrc # Конфиг Prettier
-├── .gitignore # Игнорируемые файлы
-├── Dockerfile # Конфиг Docker
+│   ├── services/                # API-клиенты
+│   │   └── api.ts               # Axios настройки
+│   ├── App.tsx                  # Главный компонент
+│   ├── main.tsx                 # Точка входа
+│   └── vite-env.d.ts            # Типы окружения
+├── .prettierrc                  # Конфиг Prettier (форматтер)
+├── eslint.config.js             # Конфиг ESLint (линтер)
+├── .gitignore                   # Игнорируемые файлы
+├── Dockerfile                   # Образ для Docker
 ├── index.html
 ├── package.json
+├── package-lock.json
 ├── tsconfig.json
+├── tsconfig.app.json
 ├── tsconfig.node.json
 ├── vite.config.ts
 └── README.md
@@ -46,6 +48,7 @@ npm install
 # Запустить в режиме разработки
 npm run dev
 ```
+
 Приложение будет доступно по адресу: http://localhost:5173
 
 ### Сборка для production
@@ -53,22 +56,26 @@ npm run dev
 ```bash
 npm run build
 ```
+
 ### Запуск через Docker
+
 ```bash
 # Из корня проекта
 docker-compose up frontend
 ```
+
 ## API Endpoints
 
 Фронтенд взаимодействует с бэкендом через REST API:
 
-| Метод | URL | Описание |
-|-------|-----|----------|
-| GET | `/api/services/` | Список всех товаров |
-| GET | `/api/services/<id>/` | Детальная информация о товаре |
-| POST | `/api/order/add/<id>/` | Добавление товара в заявку |
+| Метод | URL                    | Описание                      |
+| ----- | ---------------------- | ----------------------------- |
+| GET   | `/api/services/`       | Список всех товаров           |
+| GET   | `/api/services/<id>/`  | Детальная информация о товаре |
+| POST  | `/api/order/add/<id>/` | Добавление товара в заявку    |
 
 ### Пример ответа API
+
 ```
 {
     "status": "success",
@@ -85,10 +92,11 @@ docker-compose up frontend
     ]
 }
 ```
+
 ## Переменные окружения
 
-| Переменная | Описание | Пример |
-|------------|----------|--------|
+| Переменная     | Описание       | Пример                      |
+| -------------- | -------------- | --------------------------- |
 | `VITE_API_URL` | URL бэкенд API | `http://localhost:8000/api` |
 
 Создайте файл `.env` из `.env.example`:
@@ -96,6 +104,7 @@ docker-compose up frontend
 ```bash
 cp .env.example .env
 ```
+
 ## Код-стайл
 
 - **Имена переменных и функций:** `camelCase`
