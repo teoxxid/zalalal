@@ -1,0 +1,36 @@
+{% extends "main/base.html" %}
+
+{% block title %}Каталог товаров{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="cart-preview">
+        <h3>Текущая заявка</h3>
+        {% if current_order %}
+        <p>ID: {{ current_order.id }}</p>
+        <p>Товаров: {{ cart_items_count }}</p>
+        <p>Статус: Черновик</p>
+        <p>Сумма: {{ current_order.total_amount }} ₽</p>
+        <a href="{% url 'order_detail' current_order.id %}" class="btn">Перейти в корзину</a>
+        {% else %}
+        <p>Нет активной заявки</p>
+        <p>Товаров: 0</p>
+        <p>Добавьте товар, чтобы создать заявку</p>
+        {% endif %}
+    </div>
+
+    <div class="products-grid">
+        {% for service in services %}
+        <a href="{% url 'service_detail' service.id %}" class="product-card-link">
+            <div class="product-card">
+                <img src="{{ service.image_url }}" alt="{{ service.name }}" class="product-image">
+                <h3 class="product-title">{{ service.name }}</h3>
+                <p class="product-price">{{ service.price }} ₽</p>
+                <p class="product-category">{{ service.category }}</p>
+                <p class="product-rating">★ {{ service.rating }}</p>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

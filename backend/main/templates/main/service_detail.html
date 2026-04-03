@@ -1,0 +1,44 @@
+{% extends "main/base.html" %}
+
+{% block title %}{{ service.name }}{% endblock %}
+
+{% block content %}
+<div class="product-detail">
+    <div class="detail-header">
+        <a href="{% url 'service_list' %}" class="back-button">← Назад</a>
+    </div>
+
+    <div class="detail-content">
+        <div class="detail-media">
+            {% if service.video_url %}
+            <video controls autoplay muted loop class="detail-video">
+                <source src="{{ service.video_url }}" type="video/mp4">
+                Ваш браузер не поддерживает видео.
+            </video>
+            {% else %}
+            <img src="{{ service.image_url }}" alt="{{ service.name }}" class="detail-image">
+            {% endif %}
+        </div>
+
+        <div class="detail-info">
+            <h1>{{ service.name }}</h1>
+            <p class="detail-price">{{ service.price }} ₽</p>
+            <p class="detail-category">Категория: {{ service.category }}</p>
+            <p class="detail-brand">Бренд: {{ service.brand }}</p>
+            <p class="detail-rating">Рейтинг: ★ {{ service.rating }}</p>
+
+            <div class="detail-description">
+                <h3>Описание</h3>
+                <p>{{ service.description }}</p>
+            </div>
+
+            <form method="POST" action="{% url 'add_to_order' service.id %}">
+                {% csrf_token %}
+                <button type="submit" class="add-to-cart-btn">
+                    Добавить в заявку
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

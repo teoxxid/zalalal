@@ -1,0 +1,14 @@
+{% extends "main/base.html" %}
+
+{% block title %}Заявка удалена{% endblock %}
+
+{% block content %}
+<div class="deleted-order-container">
+    <div class="deleted-order-card">
+        <div class="deleted-order-icon"></div>
+        <h1>Заявка #{{ order_id }} удалена</h1>
+        <p>Эта заявка была удалена и недоступна для просмотра</p>
+        <a href="{% url 'order_list' %}" class="deleted-order-btn">Вернуться к списку заявок</a>
+    </div>
+</div>
+{% endblock %}

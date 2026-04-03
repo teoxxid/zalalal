@@ -1,0 +1,80 @@
+{% extends "main/base.html" %}
+
+{% block title %}Заявка {{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="order-detail">
+    <div class="order-header">
+        <a href="{% url 'index' %}" class="back-button">← На главную</a>
+        <h1>Заявка №{{ order.id }}</h1>
+    </div>
+
+    <div class="order-info">
+        <p><strong>Статус:</strong>
+            {% if order.status == 'draft' %}Черновик
+            {% elif order.status == 'deleted' %}Удалена
+            {% elif order.status == 'submitted' %}Сформирована
+            {% elif order.status == 'completed' %}Завершена
+            {% elif order.status == 'rejected' %}Отклонена
+            {% endif %}
+        </p>
+        <p><strong>Дата создания:</strong> {{ order.created_at|date:"d.m.Y H:i:s" }}</p>
+        <p><strong>Общая сумма:</strong> {{ order.total_amount }} ₽</p>
+
+        {% if order.status == 'completed' %}
+        <div class="order-results">
+            <h3>Результаты заказа:</h3>
+            <p><strong>Общее количество товаров:</strong> {{ order.total_items }} шт.</p>
+            <p><strong>Итоговый вес:</strong> {{ order.total_weight }} кг</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="order-items">
+        <h2>Товары в заявке</h2>
+
+        {% for item in order_items %}
+        <div class="order-item">
+            <a href="{% url 'service_detail' item.service.id %}" class="order-item-link">
+                <div class="order-item-image-wrapper">
+                    <img src="{{ item.service.image_url }}" alt="{{ item.service.name }}" class="order-item-image">
+                </div>
+                <div class="order-item-info">
+                    <div class="item-details">
+                        <h3>{{ item.service.name }}</h3>
+                        <p class="item-price">{{ item.price_at_time }} ₽</p>
+                    </div>
+                    <div class="item-quantity">
+                        <span class="quantity-label">Количество:</span>
+                        <span class="quantity-value">{{ item.quantity }}</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% empty %}
+        <div class="empty-cart">
+            <p>В заявке нет товаров</p>
+            <a href="{% url 'service_list' %}" class="btn">Перейти в каталог</a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="order-actions">
+        {% if order.status == 'draft' %}
+        <form method="POST" action="{% url 'complete_order' order.id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="complete-order-btn">Оформить заказ</button>
+        </form>
+        <form method="POST" action="{% url 'delete_order' order.id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="delete-order-btn" onclick="return confirm('Удалить заявку?')">Удалить заявку</button>
+        </form>
+        {% elif order.status == 'submitted' %}
+        <form method="POST" action="{% url 'complete_order' order.id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="complete-order-btn">Завершить заказ и рассчитать</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

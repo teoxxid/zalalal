@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoltMarket - {% block title %}{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header class="header">
+        <a href="{% url 'index' %}" class="logo">
+            <span class="logo-text">VoltMarket</span>
+        </a>
+
+        <nav class="main-nav">
+            <a href="{% url 'index' %}" class="nav-link {% if request.path == '/' %}active{% endif %}">Главная</a>
+            <a href="{% url 'service_list' %}" class="nav-link {% if request.path == '/catalog/' %}active{% endif %}">Каталог</a>
+            <a href="{% url 'order_list' %}" class="nav-link {% if request.path == '/orders/' %}active{% endif %}">Все заявки</a>
+        </nav>
+
+        <div class="header-right">
+            <form method="GET" action="{% url 'service_list' %}" class="search-form">
+                <input
+                    type="text"
+                    name="search"
+                    value="{{ search_query }}"
+                    placeholder="Поиск товаров..."
+                    class="search-input"
+                >
+                <button type="submit" class="search-button">Найти</button>
+            </form>
+
+            <a href="{% if current_order %}{% url 'order_detail' current_order.id %}{% else %}#{% endif %}" class="cart-widget">
+                <span class="cart-text">Корзина</span>
+                <span class="cart-count">{{ cart_items_count }}</span>
+            </a>
+        </div>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
