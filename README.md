@@ -3,13 +3,13 @@
 Маркетплейс электронной техники. Проект состоит из бэкенда на Django и фронтенда на React.
 
 ## Структура проекта
+
 ```
 marketplace/
 ├── backend/ # Django бэкенд
 ├── frontend/ # React фронтенд
-├── .flake8 # Конфиг линтера
-├── .pre-commit-config.yaml
-├── pyproject.toml # Конфиг Black
+├── ruff.toml # Конфиг Ruff (линтер + форматтер)
+├── .pre-commit-config.yaml # Pre-commit хуки
 ├── docker-compose.yml
 └── README.md
 ```
