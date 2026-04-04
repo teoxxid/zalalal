@@ -71,7 +71,7 @@ def check_minio_connection():
     """Проверяет подключение к MinIO"""
     try:
         buckets = minio_client.list_buckets()
-        print(f"Подключение к MinIO успешно. " f"Бакеты: {[b.name for b in buckets]}")
+        print(f"Подключение к MinIO успешно. Бакеты: {[b.name for b in buckets]}")
         return True
     except Exception as e:
         print(f"Ошибка подключения к MinIO: {e}")

@@ -1,6 +1,6 @@
 {% extends "main/base.html" %}
 
-{% block title %}{{ service.name }}{% endblock %}
+{% block title %}{{ data.service.name }}{% endblock %}
 
 {% block content %}
 <div class="product-detail">
@@ -10,29 +10,29 @@
 
     <div class="detail-content">
         <div class="detail-media">
-            {% if service.video_url %}
+            {% if data.service.video_url %}
             <video controls autoplay muted loop class="detail-video">
-                <source src="{{ service.video_url }}" type="video/mp4">
+                <source src="{{ data.service.video_url }}" type="video/mp4">
                 Ваш браузер не поддерживает видео.
             </video>
             {% else %}
-            <img src="{{ service.image_url }}" alt="{{ service.name }}" class="detail-image">
+            <img src="{{ data.service.image_url }}" alt="{{ data.service.name }}" class="detail-image">
             {% endif %}
         </div>
 
         <div class="detail-info">
-            <h1>{{ service.name }}</h1>
-            <p class="detail-price">{{ service.price }} ₽</p>
-            <p class="detail-category">Категория: {{ service.category }}</p>
-            <p class="detail-brand">Бренд: {{ service.brand }}</p>
-            <p class="detail-rating">Рейтинг: ★ {{ service.rating }}</p>
+            <h1>{{ data.service.name }}</h1>
+            <p class="detail-price">{{ data.service.price }} ₽</p>
+            <p class="detail-category">Категория: {{ data.service.category }}</p>
+            <p class="detail-brand">Бренд: {{ data.service.brand }}</p>
+            <p class="detail-rating">Рейтинг: ★ {{ data.service.rating }}</p>
 
             <div class="detail-description">
                 <h3>Описание</h3>
-                <p>{{ service.description }}</p>
+                <p>{{ data.service.description }}</p>
             </div>
 
-            <form method="POST" action="{% url 'add_to_order' service.id %}">
+            <form method="POST" action="{% url 'add_to_order' data.service.id %}">
                 {% csrf_token %}
                 <button type="submit" class="add-to-cart-btn">
                     Добавить в заявку

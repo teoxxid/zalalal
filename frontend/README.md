@@ -20,18 +20,18 @@ frontend/
 │   ├── App.tsx                  # Главный компонент
 │   ├── main.tsx                 # Точка входа
 │   └── vite-env.d.ts            # Типы окружения
-├── .prettierrc                  # Конфиг Prettier (форматтер)
-├── eslint.config.js             # Конфиг ESLint (линтер)
 ├── .gitignore                   # Игнорируемые файлы
+├── .prettierrc                  # Конфиг Prettier (форматтер)
 ├── Dockerfile                   # Образ для Docker
+├── eslint.config.js             # Конфиг ESLint (линтер)
 ├── index.html
-├── package.json
 ├── package-lock.json
-├── tsconfig.json
-├── tsconfig.app.json
-├── tsconfig.node.json
-├── vite.config.ts
-└── README.md
+├── package.json
+├── README.md
+├── tsconfig.app.json            # Настройки TypeScript для приложения
+├── tsconfig.json                # Корневой конфиг TypeScript
+├── tsconfig.node.json           # Настройки TypeScript для Node.js
+└── vite.config.ts               # Конфиг Vite
 ```
 
 ## Установка и запуск
@@ -68,11 +68,13 @@ docker-compose up frontend
 
 Фронтенд взаимодействует с бэкендом через REST API:
 
-| Метод | URL                    | Описание                      |
-| ----- | ---------------------- | ----------------------------- |
-| GET   | `/api/services/`       | Список всех товаров           |
-| GET   | `/api/services/<id>/`  | Детальная информация о товаре |
-| POST  | `/api/order/add/<id>/` | Добавление товара в заявку    |
+| Метод | URL | Описание |
+|-------|-----|----------|
+| GET | `/api/services/` | Список всех товаров |
+| GET | `/api/services/<id>/` | Детальная информация о товаре |
+| POST | `/api/order/add/<id>/` | Добавление товара в заявку |
+| PUT | `/api/order/item/<id>/` | Обновление количества товара |
+| DELETE | `/api/order/<id>/` | Удаление заявки |
 
 ### Пример ответа API
 
@@ -92,19 +94,17 @@ docker-compose up frontend
     ]
 }
 ```
-
 ## Переменные окружения
 
-| Переменная     | Описание       | Пример                      |
-| -------------- | -------------- | --------------------------- |
+| Переменная | Описание | Пример |
+|------------|----------|--------|
 | `VITE_API_URL` | URL бэкенд API | `http://localhost:8000/api` |
 
 Создайте файл `.env` из `.env.example`:
 
-```bash
+```
 cp .env.example .env
 ```
-
 ## Код-стайл
 
 - **Имена переменных и функций:** `camelCase`

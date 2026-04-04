@@ -1,0 +1,16 @@
+line-length = 88
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = []
+
+[lint.isort]
+combine-as-imports = true
+split-on-trailing-comma = false
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

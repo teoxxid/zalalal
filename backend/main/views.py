@@ -28,10 +28,14 @@ def index(request):
     background_video_url = "http://localhost:9000/services/background.mp4"
 
     context = {
-        "services": services,
-        "current_order": current_order,
-        "cart_items_count": cart_items_count,
-        "background_video_url": background_video_url,
+        "isError": False,
+        "error": None,
+        "data": {
+            "services": services,
+            "current_order": current_order,
+            "cart_items_count": cart_items_count,
+            "background_video_url": background_video_url,
+        },
     }
     return render(request, "main/index.html", context)
 
@@ -61,10 +65,14 @@ def service_list(request):
         cart_items_count = 0
 
     context = {
-        "services": services,
-        "search_query": search_query,
-        "cart_items_count": cart_items_count,
-        "current_order": current_order,
+        "isError": False,
+        "error": None,
+        "data": {
+            "services": services,
+            "search_query": search_query,
+            "cart_items_count": cart_items_count,
+            "current_order": current_order,
+        },
     }
     return render(request, "main/service_list.html", context)
 
@@ -90,9 +98,13 @@ def service_detail(request, service_id):
         cart_items_count = 0
 
     context = {
-        "service": service,
-        "current_order": current_order,
-        "cart_items_count": cart_items_count,
+        "isError": False,
+        "error": None,
+        "data": {
+            "service": service,
+            "current_order": current_order,
+            "cart_items_count": cart_items_count,
+        },
     }
     return render(request, "main/service_detail.html", context)
 
@@ -123,10 +135,14 @@ def order_detail(request, order_id):
         cart_items_count = 0
 
     context = {
-        "order": order,
-        "order_items": order_items,
-        "current_order": current_order,
-        "cart_items_count": cart_items_count,
+        "isError": False,
+        "error": None,
+        "data": {
+            "order": order,
+            "order_items": order_items,
+            "current_order": current_order,
+            "cart_items_count": cart_items_count,
+        },
     }
     return render(request, "main/order_detail.html", context)
 
@@ -147,9 +163,13 @@ def order_list(request):
         cart_items_count = 0
 
     context = {
-        "orders": orders,
-        "current_order": current_order,
-        "cart_items_count": cart_items_count,
+        "isError": False,
+        "error": None,
+        "data": {
+            "orders": orders,
+            "current_order": current_order,
+            "cart_items_count": cart_items_count,
+        },
     }
     return render(request, "main/order_list.html", context)
 

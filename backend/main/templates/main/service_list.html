@@ -6,12 +6,12 @@
 <div class="container">
     <div class="cart-preview">
         <h3>Текущая заявка</h3>
-        {% if current_order %}
-        <p>ID: {{ current_order.id }}</p>
-        <p>Товаров: {{ cart_items_count }}</p>
+        {% if data.current_order %}
+        <p>ID: {{ data.current_order.id }}</p>
+        <p>Товаров: {{ data.cart_items_count }}</p>
         <p>Статус: Черновик</p>
-        <p>Сумма: {{ current_order.total_amount }} ₽</p>
-        <a href="{% url 'order_detail' current_order.id %}" class="btn">Перейти в корзину</a>
+        <p>Сумма: {{ data.current_order.total_amount }} ₽</p>
+        <a href="{% url 'order_detail' data.current_order.id %}" class="btn">Перейти в корзину</a>
         {% else %}
         <p>Нет активной заявки</p>
         <p>Товаров: 0</p>
@@ -20,7 +20,7 @@
     </div>
 
     <div class="products-grid">
-        {% for service in services %}
+        {% for service in data.services %}
         <a href="{% url 'service_detail' service.id %}" class="product-card-link">
             <div class="product-card">
                 <img src="{{ service.image_url }}" alt="{{ service.name }}" class="product-image">

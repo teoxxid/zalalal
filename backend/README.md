@@ -8,7 +8,7 @@
 - **База данных:** [PostgreSQL](https://www.postgresql.org/)
 - **Хранилище файлов:** [MinIO](https://min.io/)
 - **Контейнеризация:** [Docker](https://www.docker.com/)
-- **Качество кода:** [Flake8](https://flake8.pycqa.org/), [Black](https://black.readthedocs.io/), [isort](https://pycqa.github.io/isort/), [pre-commit](https://pre-commit.com/)
+- **Качество кода:** [Ruff](https://docs.astral.sh/ruff/), [pre-commit](https://pre-commit.com/)
 
 ## Структура проекта
 ```
@@ -30,12 +30,10 @@ backend/
 ├── .env                           # Переменные окружения (секреты)
 ├── .env.example                   # Пример переменных окружения
 ├── .gitignore                     # Игнорируемые файлы
-├── db.sqlite3                     # SQLite БД (для разработки)
 ├── Dockerfile                     # Образ для Docker
 ├── manage.py                      # Управление Django
 ├── README.md                      # Документация
-├── requirements.txt               # Зависимости Python
-└── settings.py                    # (дубликат? возможно, лишний)
+└── requirements.txt               # Зависимости Python
 ```
 
 ## Установка и запуск
@@ -120,9 +118,8 @@ docker-compose up --build
 - **Имена классов:** `PascalCase`
 - **Имена файлов:** `snake_case.py`
 - **Максимальная длина строки:** 88 символов
-- **Форматирование:** [Black](https://black.readthedocs.io/)
-- **Сортировка импортов:** [isort](https://pycqa.github.io/isort/)
-- **Линтер:** [Flake8](https://flake8.pycqa.org/)
+- **Форматирование и линтинг:** [Ruff](https://docs.astral.sh/ruff/)
+- **Pre-commit хуки:** автоматическая проверка перед коммитом
 
 Перед каждым коммитом код автоматически проверяется pre-commit хуками.
 
@@ -136,9 +133,8 @@ docker-compose up --build
 - `check-added-large-files` — проверка размера файлов
 - `check-merge-conflict` — проверка маркеров конфликтов
 - `detect-private-key` — проверка наличия приватных ключей
-- `isort` — сортировка импортов
-- `black` — форматирование кода
-- `flake8` — линтинг кода
+- `ruff` — линтинг и форматирование Python кода
+- `ruff-format` — форматирование Python кода
 
 Для ручного запуска всех хуков:
 ```
@@ -153,14 +149,6 @@ pre-commit run --all-files
 - **MinIO:** все медиафайлы (фото и видео) хранятся в объектном хранилище
 
 ## Известные проблемы и решения
-
-### Проблемы с подключением к PyPI
-
-При установке пакетов могут возникать таймауты. Используйте зеркало:
-
-```
-pip install -i https://mirrors.aliyun.com/pypi/simple/ <package_name>
-```
 ## Ошибка выполнения скриптов PowerShell
 
 Если не активируется виртуальное окружение:
