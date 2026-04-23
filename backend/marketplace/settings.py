@@ -6,6 +6,9 @@ SECRET_KEY = "django-insecure-your-secret-key-here"
 DEBUG = True
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"]
 
+# Модель пользователя
+AUTH_USER_MODEL = 'main.User'
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -15,6 +18,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
+    "drf_spectacular",  # <- drf-spectacular вместо drf_yasg
     "main",
 ]
 
@@ -79,8 +83,35 @@ STATIC_URL = "/static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 CORS_ALLOW_ALL_ORIGINS = True
 
+# Настройки Redis для сессий
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://redis:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
+# DRF настройки (сессионная авторизация) + drf-spectacular
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.AllowAny',
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',
     ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticatedOrReadOnly',
+    ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# Настройки drf-spectacular
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'VoltMarket API',
+    'DESCRIPTION': 'API для маркетплейса электронной техники',
+    'VERSION': 'v1',
+    'SERVE_INCLUDE_SCHEMA': False,  
 }
