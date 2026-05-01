@@ -1,6 +1,5 @@
 from rest_framework import serializers
-
-from .models import Order, OrderItem, Service
+from .models import Order, OrderItem, Service, User
 
 
 class ServiceSerializer(serializers.ModelSerializer):
@@ -20,7 +19,9 @@ class ServiceSerializer(serializers.ModelSerializer):
         ]
 
     def get_image_url(self, obj):
-        return f"http://localhost:9000/services/{obj.image_key}"
+        if obj.image_key:
+            return f"http://localhost:9000/services/{obj.image_key}"
+        return None
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -32,8 +33,32 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(source="orderitem_set", many=True, read_only=True)
+    user = serializers.StringRelatedField()
+    moderator = serializers.StringRelatedField()
+    items = OrderItemSerializer(many=True, read_only=True)
 
     class Meta:
         model = Order
-        fields = ["id", "status", "created_at", "total_amount", "items"]
+        fields = '__all__'
+
+
+class OrderListSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField()
+    items_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Order
+        fields = ["id", "user", "status", "submitted_at", "total_amount", "items_count"]
+
+
+class UserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "email", "password", "role"]
+
+    def create(self, validated_data):
+        user = User.objects.create_user(**validated_data)
+        return user
+    

@@ -12,6 +12,8 @@ services:
       - minio
       - redis
     command: python manage.py runserver 0.0.0.0:8000
+    networks:
+      - default
 
   frontend:
     build: ./frontend
@@ -19,6 +21,8 @@ services:
       - "5173:80"
     depends_on:
       - backend
+    networks:
+      - default
 
   postgres:
     image: postgres:15
@@ -31,6 +35,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - default
 
   redis:
     image: redis:7-alpine
@@ -41,6 +47,8 @@ services:
       - redis_data:/data
     restart: unless-stopped
     command: redis-server --appendonly yes
+    networks:
+      - default
 
   minio:
     image: minio/minio
@@ -54,6 +62,8 @@ services:
     volumes:
       - C:/Users/teoxxid/minio-data:/data
     command: server /data --console-address ":9001"
+    networks:
+      - default
 
   adminer:
     image: adminer
@@ -62,7 +72,40 @@ services:
       - "8080:8080"
     depends_on:
       - postgres
+    networks:
+      - default
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    restart: unless-stopped
+    networks:
+      - default
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - default
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  default:
+    name: marketplace_network
+    

@@ -1,15 +1,30 @@
-from django.db.models import Q
+import logging
+import uuid
+import re
+from datetime import timedelta
+
+from django.db.models import Q, Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from datetime import timedelta
-from .utils import get_current_user, get_moderator_user
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiTypes
+from django.views.decorators.csrf import csrf_exempt
 
 from .models import Order, OrderItem, Service, User
-from .serializers import ServiceSerializer
+from .serializers import (
+    ServiceSerializer,
+    OrderSerializer,
+    OrderListSerializer,
+    OrderItemSerializer,
+    UserSerializer,
+)
+from .utils import get_current_user, get_moderator_user
+
+logger = logging.getLogger(__name__)
 
 # ========== HTML СТРАНИЦЫ ==========
 
@@ -20,7 +35,7 @@ def index(request):
         service.image_url = f"http://localhost:9000/services/{service.image_key}"
 
     try:
-        user = User.objects.get(id=1)
+        user = get_current_user()
         current_order = Order.objects.get(user=user, status="draft")
         cart_items_count = OrderItem.objects.filter(order=current_order).count()
     except (User.DoesNotExist, Order.DoesNotExist):
@@ -55,9 +70,7 @@ def service_list(request):
     for service in services:
         service.image_url = f"http://localhost:9000/services/{service.image_key}"
 
-    user, _ = User.objects.get_or_create(
-        id=1, defaults={"username": "user1", "email": "user1@mail.ru"}
-    )
+    user = get_current_user()
 
     try:
         current_order = Order.objects.get(user=user, status="draft")
@@ -88,9 +101,7 @@ def service_detail(request, service_id):
         else None
     )
 
-    user, _ = User.objects.get_or_create(
-        id=1, defaults={"username": "user1", "email": "user1@mail.ru"}
-    )
+    user = get_current_user()
 
     try:
         current_order = Order.objects.get(user=user, status="draft")
@@ -125,9 +136,7 @@ def order_detail(request, order_id):
             f"http://localhost:9000/services/{item.service.image_key}"
         )
 
-    user, _ = User.objects.get_or_create(
-        id=1, defaults={"username": "user1", "email": "user1@mail.ru"}
-    )
+    user = get_current_user()
 
     try:
         current_order = Order.objects.get(user=user, status="draft")
@@ -151,9 +160,7 @@ def order_detail(request, order_id):
 
 def order_list(request):
     """Список всех заявок"""
-    user, _ = User.objects.get_or_create(
-        id=1, defaults={"username": "user1", "email": "user1@mail.ru"}
-    )
+    user = get_current_user()
 
     orders = Order.objects.filter(user=user).order_by("-created_at")
 
@@ -179,9 +186,7 @@ def order_list(request):
 def add_to_order(request, service_id):
     """Добавление товара в заявку (HTML POST)"""
     if request.method == "POST":
-        user, _ = User.objects.get_or_create(
-            id=1, defaults={"username": "user1", "email": "user1@mail.ru"}
-        )
+        user = get_current_user()
 
         order, created = Order.objects.get_or_create(
             user=user,
@@ -255,15 +260,36 @@ def complete_order(request, order_id):
 # ========== API ЭНДПОИНТЫ ==========
 
 
+@csrf_exempt
 @api_view(["GET"])
 def api_service_list(request):
+    """GET список услуг с фильтрацией"""
     services = Service.objects.filter(status="active")
+
+    name_filter = request.query_params.get("name")
+    if name_filter:
+        services = services.filter(name__icontains=name_filter)
+
+    category_filter = request.query_params.get("category")
+    if category_filter:
+        services = services.filter(category__icontains=category_filter)
+
+    price_min = request.query_params.get("price_min")
+    if price_min:
+        services = services.filter(price__gte=price_min)
+
+    price_max = request.query_params.get("price_max")
+    if price_max:
+        services = services.filter(price__lte=price_max)
+
     serializer = ServiceSerializer(services, many=True)
     return Response({"status": "success", "data": serializer.data})
 
 
+@csrf_exempt
 @api_view(["GET"])
 def api_service_detail(request, service_id):
+    """GET одна запись услуги"""
     try:
         service = Service.objects.get(id=service_id, status="active")
         serializer = ServiceSerializer(service)
@@ -275,50 +301,403 @@ def api_service_detail(request, service_id):
         )
 
 
+@csrf_exempt
 @api_view(["POST"])
 def api_service_create(request):
-    """POST добавление новой услуги"""
+    """POST добавление новой услуги с картинкой и видео"""
     try:
         name = request.data.get("name")
         price = request.data.get("price")
-        description = request.data.get("description", "")
-        category = request.data.get("category", "")
-        brand = request.data.get("brand", "")
-        
-        if not name or not price:
+        description = request.data.get("description")
+        category = request.data.get("category")
+        brand = request.data.get("brand")
+        rating = request.data.get("rating", 0)
+        weight = request.data.get("weight", 0)
+
+        if not all([name, price, description, category, brand]):
             return Response(
-                {"status": "error", "message": "Не указаны обязательные поля"},
+                {"status": "error", "message": "Не заполнены обязательные поля"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
+        def simple_slugify(text):
+            rus_to_lat = {
+                'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
+                'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+                'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+                'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'sch',
+                'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
+            }
+            text = text.lower().strip()
+            result = ''
+            for char in text:
+                if char in rus_to_lat:
+                    result += rus_to_lat[char]
+                elif char.isalnum():
+                    result += char
+                else:
+                    result += '-'
+            result = re.sub(r'-+', '-', result)
+            return result.strip('-')
+
+        base_name = simple_slugify(name)
+        image_key = None
+        video_key = None
+
+        if "image" in request.FILES:
+            image_file = request.FILES["image"]
+            ext = image_file.name.split(".")[-1].lower()
+            image_key = f"{base_name}_{uuid.uuid4().hex[:8]}.{ext}"
+            from .minio_client import upload_file_to_minio
+            success = upload_file_to_minio(image_file, image_key)
+            if not success:
+                return Response(
+                    {"status": "error", "message": "Ошибка загрузки изображения"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        if "video" in request.FILES:
+            video_file = request.FILES["video"]
+            ext = video_file.name.split(".")[-1].lower()
+            video_key = f"{base_name}_{uuid.uuid4().hex[:8]}.{ext}"
+            from .minio_client import upload_file_to_minio
+            success = upload_file_to_minio(video_file, video_key)
+            if not success:
+                return Response(
+                    {"status": "error", "message": "Ошибка загрузки видео"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
         service = Service.objects.create(
             name=name,
             price=price,
             description=description,
+            image_key=image_key,
+            video_key=video_key,
             category=category,
             brand=brand,
-            status="active"
+            rating=rating,
+            weight=weight,
+            status="active",
         )
-        
+
+        serializer = ServiceSerializer(service)
         return Response(
-            {"status": "success", "data": {"id": service.id}},
+            {
+                "status": "success",
+                "message": "Услуга успешно создана",
+                "data": serializer.data,
+            },
             status=status.HTTP_201_CREATED,
         )
+
     except Exception as e:
+        logger.error(f"Error creating service: {str(e)}")
         return Response(
             {"status": "error", "message": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
-@api_view(["POST"])
-def api_add_to_order(request, service_id):
-    try:
-        service = Service.objects.get(id=service_id, status="active")
+@csrf_exempt
+@api_view(["GET"])
+def api_cart_icon(request):
+    """GET иконки корзины (id черновика + количество услуг)"""
+    user = get_current_user()
 
-        user, _ = User.objects.get_or_create(
-            id=1, defaults={"username": "user1", "email": "user1@mail.ru"}
+    try:
+        draft_order = Order.objects.get(user=user, status="draft")
+        items_count = OrderItem.objects.filter(order=draft_order).count()
+        return Response(
+            {
+                "status": "success",
+                "data": {"order_id": draft_order.id, "items_count": items_count},
+            }
         )
+    except Order.DoesNotExist:
+        return Response(
+            {"status": "success", "data": {"order_id": None, "items_count": 0}}
+        )
+
+
+@csrf_exempt
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def api_order_list(request):
+    """GET список заявок (кроме удаленных и черновика) с фильтрацией"""
+    orders = Order.objects.exclude(status__in=["draft", "deleted"])
+
+    status_filter = request.query_params.get("status")
+    if status_filter:
+        orders = orders.filter(status=status_filter)
+
+    date_from = request.query_params.get("date_from")
+    if date_from:
+        orders = orders.filter(submitted_at__date__gte=date_from)
+
+    date_to = request.query_params.get("date_to")
+    if date_to:
+        orders = orders.filter(submitted_at__date__lte=date_to)
+
+    orders = orders.annotate(items_count=Count("items"))
+    serializer = OrderListSerializer(orders, many=True)
+    return Response({"status": "success", "data": serializer.data})
+
+
+@csrf_exempt
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def api_order_detail(request, order_id):
+    """GET одна заявка (поля заявки + её услуги с картинками)"""
+    try:
+        order = Order.objects.get(id=order_id)
+        if order.status == "deleted":
+            return Response(
+                {"status": "error", "message": "Заявка удалена"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        
+        # Проверка: пользователь может видеть только свои заявки, если он не ADMIN
+        user = request.user
+        if user.role != 'ADMIN' and order.user.id != user.id:
+            return Response(
+                {"status": "error", "message": "Нет доступа к этой заявке"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        
+        items = order.items.select_related("service")
+        for item in items:
+            if item.service.image_key:
+                item.service.image_url = f"http://localhost:9000/services/{item.service.image_key}"
+        serializer = OrderSerializer(order)
+        return Response({"status": "success", "data": serializer.data})
+    except Order.DoesNotExist:
+        return Response(
+            {"status": "error", "message": "Заявка не найдена"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+@csrf_exempt
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def api_order_update(request, order_id):
+    """PUT изменения полей заявки по теме"""
+    try:
+        order = Order.objects.get(id=order_id)
+        user = request.user
+
+        if order.user.id != user.id:
+            return Response(
+                {"status": "error", "message": "Нельзя редактировать чужую заявку"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if order.status != "draft":
+            return Response(
+                {"status": "error", "message": "Редактировать можно только черновик"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        delivery_address = request.data.get("delivery_address")
+        if delivery_address:
+            order.delivery_address = delivery_address
+
+        order.save()
+        serializer = OrderSerializer(order)
+        return Response(
+            {"status": "success", "message": "Заявка обновлена", "data": serializer.data}
+        )
+    except Order.DoesNotExist:
+        return Response(
+            {"status": "error", "message": "Заявка не найдена"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+@csrf_exempt
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def api_order_submit(request, order_id):
+    """PUT сформировать заявку (дата формирования + расчёт)"""
+    try:
+        order = Order.objects.get(id=order_id)
+        user = request.user
+
+        if order.user.id != user.id:
+            return Response(
+                {"status": "error", "message": "Нельзя сформировать чужую заявку"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if order.status != "draft":
+            return Response(
+                {"status": "error", "message": "Сформировать можно только черновик"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not order.delivery_address:
+            return Response(
+                {"status": "error", "message": "Не указан адрес доставки"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        items = OrderItem.objects.filter(order=order)
+        if not items.exists():
+            return Response(
+                {"status": "error", "message": "Нельзя сформировать пустую заявку"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        total = sum(item.quantity * item.price_at_time for item in items)
+        order.total_amount = total
+        order.delivery_date = timezone.now().date() + timedelta(days=7)
+        order.delivery_cost = max(total * 0.05, 300)
+        order.status = "submitted"
+        order.submitted_at = timezone.now()
+        order.save()
+
+        serializer = OrderSerializer(order)
+        return Response(
+            {"status": "success", "message": "Заявка сформирована", "data": serializer.data}
+        )
+    except Order.DoesNotExist:
+        return Response(
+            {"status": "error", "message": "Заявка не найдена"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+@csrf_exempt
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def api_order_complete(request, order_id):
+    """PUT завершить заявку модератором"""
+    try:
+        order = Order.objects.get(id=order_id)
+        moderator = get_moderator_user()
+        user = request.user
+
+        # Только модератор (ADMIN) может завершить заявку
+        if user.role != 'ADMIN':
+            return Response(
+                {"status": "error", "message": "Только модератор может завершить заявку"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if order.status != "submitted":
+            return Response(
+                {"status": "error", "message": "Завершить можно только сформированную заявку"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.status = "completed"
+        order.completed_at = timezone.now()
+        order.moderator = moderator
+
+        items = OrderItem.objects.filter(order=order).select_related("service")
+        order.total_items = sum(item.quantity for item in items)
+        order.total_weight = sum(float(item.service.weight) * item.quantity for item in items)
+
+        order.save()
+        serializer = OrderSerializer(order)
+        return Response(
+            {"status": "success", "message": "Заявка завершена", "data": serializer.data}
+        )
+    except Order.DoesNotExist:
+        return Response(
+            {"status": "error", "message": "Заявка не найдена"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+@csrf_exempt
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def api_order_reject(request, order_id):
+    """PUT отклонить заявку модератором"""
+    try:
+        order = Order.objects.get(id=order_id)
+        moderator = get_moderator_user()
+        user = request.user
+
+        # Только модератор (ADMIN) может отклонить заявку
+        if user.role != 'ADMIN':
+            return Response(
+                {"status": "error", "message": "Только модератор может отклонить заявку"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if order.status != "submitted":
+            return Response(
+                {"status": "error", "message": "Отклонить можно только сформированную заявку"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.status = "rejected"
+        order.completed_at = timezone.now()
+        order.moderator = moderator
+        order.save()
+
+        serializer = OrderSerializer(order)
+        return Response(
+            {"status": "success", "message": "Заявка отклонена", "data": serializer.data}
+        )
+    except Order.DoesNotExist:
+        return Response(
+            {"status": "error", "message": "Заявка не найдена"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+@csrf_exempt
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def api_order_delete(request, order_id):
+    """DELETE логическое удаление заявки"""
+    try:
+        order = Order.objects.get(id=order_id)
+        user = request.user
+
+        if order.user.id != user.id:
+            return Response(
+                {"status": "error", "message": "Нельзя удалить чужую заявку"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if order.status not in ["draft", "submitted"]:
+            return Response(
+                {"status": "error", "message": "Нельзя удалить заявку в этом статусе"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.status = "deleted"
+        order.save()
+        return Response({"status": "success", "message": "Заявка удалена"})
+    except Order.DoesNotExist:
+        return Response(
+            {"status": "error", "message": "Заявка не найдена"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def api_order_item_add(request):
+    """POST добавление услуги в заявку-черновик"""
+    try:
+        service_id = request.data.get("service_id")
+        quantity = request.data.get("quantity", 1)
+
+        if not service_id:
+            return Response(
+                {"status": "error", "message": "Не указан ID услуги"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        service = get_object_or_404(Service, id=service_id, status="active")
+        user = request.user
 
         order, created = Order.objects.get_or_create(
             user=user,
@@ -329,495 +708,193 @@ def api_add_to_order(request, service_id):
         order_item, item_created = OrderItem.objects.get_or_create(
             order=order,
             service=service,
-            defaults={"quantity": 1, "price_at_time": service.price},
+            defaults={"quantity": quantity, "price_at_time": service.price},
         )
 
         if not item_created:
-            order_item.quantity += 1
+            order_item.quantity += quantity
             order_item.save()
-
-        total = sum(
-            item.quantity * item.price_at_time
-            for item in OrderItem.objects.filter(order=order)
-        )
-        order.total_amount = total
-        order.save()
 
         return Response(
             {
                 "status": "success",
-                "message": "Товар добавлен в заявку",
-                "data": {"order_id": order.id, "total_amount": order.total_amount},
+                "message": "Услуга добавлена в заявку",
+                "data": {
+                    "order_id": order.id,
+                    "order_item_id": order_item.id,
+                    "quantity": order_item.quantity,
+                },
             },
             status=status.HTTP_201_CREATED,
         )
-
     except Service.DoesNotExist:
         return Response(
-            {"status": "error", "message": "Товар не найден"},
+            {"status": "error", "message": "Услуга не найдена"},
             status=status.HTTP_404_NOT_FOUND,
         )
 
 
-@api_view(["GET"])
-def api_cart_icon(request):
-    """GET иконки корзины"""
-    user = get_current_user()
-    try:
-        draft_order = Order.objects.get(user=user, status="draft")
-        items_count = OrderItem.objects.filter(order=draft_order).count()
-        return Response({
-            "status": "success", 
-            "data": {"order_id": draft_order.id, "items_count": items_count}
-        })
-    except Order.DoesNotExist:
-        return Response({"status": "success", "data": {"order_id": None, "items_count": 0}})
-
-
-@api_view(["GET"])
-def api_order_list(request):
-    """GET список заявок с фильтрацией"""
-    orders = Order.objects.exclude(status__in=["draft", "deleted"])
-    
-    status_filter = request.query_params.get("status")
-    if status_filter:
-        orders = orders.filter(status=status_filter)
-    
-    date_from = request.query_params.get("date_from")
-    if date_from:
-        orders = orders.filter(submitted_at__date__gte=date_from)
-    
-    date_to = request.query_params.get("date_to")
-    if date_to:
-        orders = orders.filter(submitted_at__date__lte=date_to)
-    
-    data = []
-    for order in orders:
-        data.append({
-            "id": order.id,
-            "status": order.status,
-            "total_amount": str(order.total_amount),
-            "created_at": order.created_at,
-            "submitted_at": order.submitted_at
-        })
-    
-    return Response({"status": "success", "data": data})
-
-
-@api_view(["GET"])
-def api_order_detail(request, order_id):
-    """GET одна заявка с услугами"""
-    try:
-        order = Order.objects.get(id=order_id)
-        if order.status == "deleted":
-            return Response({"status": "error", "message": "Заявка удалена"}, status=404)
-        
-        items = []
-        for item in order.items.select_related("service"):
-            items.append({
-                "id": item.id,
-                "service_id": item.service.id,
-                "service_name": item.service.name,
-                "quantity": item.quantity,
-                "price": str(item.price_at_time),
-                "image_url": f"http://localhost:9000/services/{item.service.image_key}" if item.service.image_key else None
-            })
-        
-        return Response({
-            "status": "success",
-            "data": {
-                "id": order.id,
-                "status": order.status,
-                "total_amount": str(order.total_amount),
-                "delivery_address": order.delivery_address,
-                "created_at": order.created_at,
-                "submitted_at": order.submitted_at,
-                "items": items
-            }
-        })
-    except Order.DoesNotExist:
-        return Response({"status": "error", "message": "Заявка не найдена"}, status=404)
-
-
+@csrf_exempt
 @api_view(["PUT"])
-def api_order_update(request, order_id):
-    """PUT изменения полей заявки"""
-    try:
-        order = Order.objects.get(id=order_id)
-        user = get_current_user()
-        
-        if order.user.id != user.id:
-            return Response({"status": "error", "message": "Нельзя редактировать чужую заявку"}, status=403)
-        
-        if order.status != "draft":
-            return Response({"status": "error", "message": "Редактировать можно только черновик"}, status=400)
-        
-        delivery_address = request.data.get("delivery_address")
-        if delivery_address:
-            order.delivery_address = delivery_address
-        
-        order.save()
-        
-        return Response({
-            "status": "success",
-            "message": "Заявка обновлена",
-            "data": {"order_id": order.id, "delivery_address": order.delivery_address}
-        })
-    except Order.DoesNotExist:
-        return Response({"status": "error", "message": "Заявка не найдена"}, status=404)
-
-
-@api_view(["PUT"])
-def api_order_submit(request, order_id):
-    """PUT сформировать заявку (с расчётом)"""
-    try:
-        order = Order.objects.get(id=order_id)
-        user = get_current_user()
-        
-        if order.user.id != user.id:
-            return Response({"status": "error", "message": "Нельзя сформировать чужую заявку"}, status=403)
-        
-        if order.status != "draft":
-            return Response({"status": "error", "message": "Сформировать можно только черновик"}, status=400)
-        
-        if not order.delivery_address:
-            return Response({"status": "error", "message": "Не указан адрес доставки"}, status=400)
-        
-        items = order.items.all()
-        if not items.exists():
-            return Response({"status": "error", "message": "Нельзя сформировать пустую заявку"}, status=400)
-        
-        total = sum(item.quantity * item.price_at_time for item in items)
-        order.total_amount = total
-        order.delivery_date = timezone.now().date() + timedelta(days=7)
-        order.delivery_cost = max(float(total) * 0.05, 300)
-        order.status = "submitted"
-        order.submitted_at = timezone.now()
-        order.save()
-        
-        return Response({
-            "status": "success",
-            "message": "Заявка сформирована",
-            "data": {
-                "order_id": order.id,
-                "total_amount": str(order.total_amount),
-                "delivery_cost": str(order.delivery_cost),
-                "delivery_date": order.delivery_date
-            }
-        })
-    except Order.DoesNotExist:
-        return Response({"status": "error", "message": "Заявка не найдена"}, status=404)
-
-
-@api_view(["PUT"])
-def api_order_complete(request, order_id):
-    """PUT завершить заявку модератором"""
-    try:
-        order = Order.objects.get(id=order_id)
-        
-        if order.status != "submitted":
-            return Response({"status": "error", "message": "Завершить можно только сформированную заявку"}, status=400)
-        
-        order.status = "completed"
-        order.completed_at = timezone.now()
-        order.save()
-        
-        return Response({
-            "status": "success",
-            "message": "Заявка завершена",
-            "data": {"order_id": order.id, "status": order.status, "completed_at": order.completed_at}
-        })
-    except Order.DoesNotExist:
-        return Response({"status": "error", "message": "Заявка не найдена"}, status=404)
-
-
-@api_view(["PUT"])
-def api_order_reject(request, order_id):
-    """PUT отклонить заявку модератором"""
-    try:
-        order = Order.objects.get(id=order_id)
-        
-        if order.status != "submitted":
-            return Response({"status": "error", "message": "Отклонить можно только сформированную заявку"}, status=400)
-        
-        order.status = "rejected"
-        order.completed_at = timezone.now()
-        order.save()
-        
-        return Response({
-            "status": "success",
-            "message": "Заявка отклонена",
-            "data": {"order_id": order.id, "status": order.status}
-        })
-    except Order.DoesNotExist:
-        return Response({"status": "error", "message": "Заявка не найдена"}, status=404)
-
-
-@api_view(["DELETE"])
-def api_order_delete(request, order_id):
-    """DELETE логическое удаление заявки"""
-    try:
-        order = Order.objects.get(id=order_id)
-        user = get_current_user()
-        
-        if order.user.id != user.id:
-            return Response({"status": "error", "message": "Нельзя удалить чужую заявку"}, status=403)
-        
-        if order.status not in ["draft", "submitted"]:
-            return Response({"status": "error", "message": "Нельзя удалить заявку в этом статусе"}, status=400)
-        
-        order.status = "deleted"
-        order.save()
-        
-        return Response({"status": "success", "message": "Заявка удалена", "data": {"order_id": order.id}})
-    except Order.DoesNotExist:
-        return Response({"status": "error", "message": "Заявка не найдена"}, status=404)
-
-
-@api_view(["POST"])
-def api_order_item_add(request):
-    """POST добавление услуги в заявку-черновик"""
-    try:
-        service_id = request.data.get("service_id")
-        quantity = int(request.data.get("quantity", 1))
-        
-        service = Service.objects.get(id=service_id, status="active")
-        user = get_current_user()
-        
-        order, created = Order.objects.get_or_create(
-            user=user,
-            status="draft",
-            defaults={"created_at": timezone.now(), "total_amount": 0}
-        )
-        
-        order_item, item_created = OrderItem.objects.get_or_create(
-            order=order,
-            service=service,
-            defaults={"quantity": quantity, "price_at_time": service.price}
-        )
-        
-        if not item_created:
-            order_item.quantity += quantity
-            order_item.save()
-        
-        total = sum(item.quantity * item.price_at_time for item in order.items.all())
-        order.total_amount = total
-        order.save()
-        
-        return Response({
-            "status": "success",
-            "message": "Услуга добавлена в заявку",
-            "data": {"order_id": order.id, "quantity": order_item.quantity}
-        }, status=201)
-        
-    except Service.DoesNotExist:
-        return Response({"status": "error", "message": "Услуга не найдена"}, status=404)
-
-
-@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
 def api_order_item_update(request, order_id, service_id):
     """PUT изменение количества в м-м (без PK)"""
     try:
         order = get_object_or_404(Order, id=order_id)
         service = get_object_or_404(Service, id=service_id)
-        user = get_current_user()
-        
+        user = request.user
+
         if order.user.id != user.id:
-            return Response({"status": "error", "message": "Нельзя редактировать чужую заявку"}, status=403)
-        
+            return Response(
+                {"status": "error", "message": "Нельзя редактировать чужую заявку"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         if order.status != "draft":
-            return Response({"status": "error", "message": "Редактировать можно только черновик"}, status=400)
-        
+            return Response(
+                {"status": "error", "message": "Редактировать можно только черновик"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         quantity = request.data.get("quantity")
         if quantity is None:
-            return Response({"status": "error", "message": "Не указано количество"}, status=400)
-        
-        try:
-            quantity = int(quantity)
-        except ValueError:
-            return Response({"status": "error", "message": "Количество должно быть числом"}, status=400)
-        
+            return Response(
+                {"status": "error", "message": "Не указано количество"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         order_item = get_object_or_404(OrderItem, order=order, service=service)
-        
-        if quantity <= 0:
-            order_item.delete()
-            message = "Услуга удалена из заявки"
-        else:
-            order_item.quantity = quantity
-            order_item.save()
-            message = "Количество обновлено"
-        
-        total = sum(item.quantity * item.price_at_time for item in order.items.all())
-        order.total_amount = total
-        order.save()
-        
-        return Response({
-            "status": "success",
-            "message": message,
-            "data": {"order_id": order.id, "service_id": service.id, "quantity": quantity}
-        })
-        
+        order_item.quantity = quantity
+        order_item.save()
+
+        return Response(
+            {
+                "status": "success",
+                "message": "Количество обновлено",
+                "data": {
+                    "order_id": order.id,
+                    "service_id": service.id,
+                    "quantity": order_item.quantity,
+                },
+            }
+        )
     except OrderItem.DoesNotExist:
-        return Response({"status": "error", "message": "Услуга не найдена в заявке"}, status=404)
+        return Response(
+            {"status": "error", "message": "Услуга не найдена в заявке"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
 
+@csrf_exempt
 @api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
 def api_order_item_delete(request, order_id, service_id):
     """DELETE удаление из заявки (без PK)"""
     try:
         order = get_object_or_404(Order, id=order_id)
         service = get_object_or_404(Service, id=service_id)
-        user = get_current_user()
-        
+        user = request.user
+
         if order.user.id != user.id:
-            return Response({"status": "error", "message": "Нельзя удалить из чужой заявки"}, status=403)
-        
-        if order.status != "draft":
-            return Response({"status": "error", "message": "Удалять можно только из черновика"}, status=400)
-        
+            return Response(
+                {"status": "error", "message": "Нельзя удалить из чужой заявки"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         order_item = get_object_or_404(OrderItem, order=order, service=service)
         order_item.delete()
-        
-        total = sum(item.quantity * item.price_at_time for item in order.items.all())
-        order.total_amount = total
-        order.save()
-        
         return Response({"status": "success", "message": "Услуга удалена из заявки"})
-        
     except OrderItem.DoesNotExist:
-        return Response({"status": "error", "message": "Услуга не найдена в заявке"}, status=404)
+        return Response(
+            {"status": "error", "message": "Услуга не найдена в заявке"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
 
-@api_view(["PUT"])
-def api_update_order_item(request, order_item_id):
-    """Обновление количества товара в заявке (по PK)"""
-    try:
-        order_item = OrderItem.objects.get(id=order_item_id)
-        quantity = request.data.get("quantity")
-        
-        if quantity is None:
-            return Response({"status": "error", "message": "Не указано количество"}, status=400)
-        
-        try:
-            quantity = int(quantity)
-        except ValueError:
-            return Response({"status": "error", "message": "Количество должно быть числом"}, status=400)
-        
-        if quantity <= 0:
-            order_item.delete()
-            message = "Товар удалён из заявки"
-        else:
-            order_item.quantity = quantity
-            order_item.save()
-            message = "Количество обновлено"
-        
-        order = order_item.order
-        total = sum(item.quantity * item.price_at_time for item in order.items.all())
-        order.total_amount = total
-        order.save()
-        
+@extend_schema(
+    request={
+        "application/json": {
+            "type": "object",
+            "properties": {
+                "username": {"type": "string"},
+                "password": {"type": "string"},
+                "email": {"type": "string"},
+            },
+            "required": ["username", "password", "email"],
+        }
+    },
+    responses={201: UserSerializer, 400: {"description": "Ошибка валидации"}},
+    examples=[
+        OpenApiExample(
+            "Пример запроса",
+            value={
+                "username": "newuser",
+                "password": "password123",
+                "email": "newuser@example.com"
+            },
+            request_only=True,
+        )
+    ],
+)
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def api_register(request):
+    """POST регистрация нового пользователя"""
+    serializer = UserSerializer(data=request.data)
+    if serializer.is_valid():
+        user = serializer.save()
+        logger.info(f"New user registered: {user.username}, role: {user.role}")
+        return Response(
+            {
+                "status": "success",
+                "message": "Пользователь зарегистрирован",
+                "data": serializer.data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+    logger.warning(f"Registration failed: {serializer.errors}")
+    return Response(
+        {"status": "error", "errors": serializer.errors},
+        status=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+@csrf_exempt
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def api_login(request):
+    """POST аутентификация"""
+    from django.contrib.auth import authenticate, login as auth_login
+    
+    username = request.data.get("username")
+    password = request.data.get("password")
+    
+    user = authenticate(username=username, password=password)
+    
+    if user:
+        auth_login(request, user)
         return Response({
             "status": "success",
-            "message": message,
+            "message": "Аутентификация успешна",
             "data": {
-                "order_id": order.id,
-                "order_item_id": order_item.id,
-                "quantity": quantity if quantity > 0 else 0,
-                "total_amount": order.total_amount,
+                "username": user.username,
+                "role": user.role,
             }
         })
-        
-    except OrderItem.DoesNotExist:
-        return Response({"status": "error", "message": "Позиция в заявке не найдена"}, status=404)
-
-
-@api_view(["DELETE"])
-def api_delete_order(request, order_id):
-    """DELETE удаление заявки"""
-    try:
-        order = Order.objects.get(id=order_id)
-        user = get_current_user()
-        
-        if order.user.id != user.id:
-            return Response({"status": "error", "message": "Нельзя удалить чужую заявку"}, status=403)
-        
-        order.status = "deleted"
-        order.save()
-        
-        return Response({
-            "status": "success",
-            "message": f"Заявка #{order_id} удалена",
-            "data": {"order_id": order.id, "status": order.status}
-        })
-        
-    except Order.DoesNotExist:
-        return Response({"status": "error", "message": "Заявка не найдена"}, status=404)
-
-
-@api_view(["POST"])
-def api_register(request):
-    """POST регистрация пользователя"""
-    try:
-        username = request.data.get("username")
-        password = request.data.get("password")
-        email = request.data.get("email", "")
-        
-        if not username or not password:
-            return Response({"status": "error", "message": "Не указаны username или password"}, status=400)
-        
-        user = User.objects.create_user(
-            username=username,
-            password=password,
-            email=email
+    else:
+        return Response(
+            {"status": "error", "message": "Неверные учетные данные"},
+            status=status.HTTP_401_UNAUTHORIZED,
         )
-        
-        return Response({
-            "status": "success",
-            "message": "Пользователь зарегистрирован",
-            "data": {"username": user.username}
-        }, status=201)
-        
-    except Exception as e:
-        return Response({"status": "error", "message": str(e)}, status=400)
 
 
-# ========== ЗАЩИЩЁННЫЕ СТРАНИЦЫ ДЛЯ ЛР4 ==========
-
-@api_view(['GET'])
-def user_page(request):
-    """Страница для авторизованных пользователей (USER и ADMIN)"""
-    return Response({
-        "status": "success",
-        "message": "Добро пожаловать на страницу пользователя!",
-        "user": request.user.username,
-        "role": request.user.role if hasattr(request.user, 'role') else 'USER'
-    })
-
-
-@api_view(['GET'])
-def admin_page(request):
-    """Страница только для администраторов"""
-    # Проверка роли
-    if not hasattr(request.user, 'role') or request.user.role != 'ADMIN':
-        return Response({
-            "status": "error",
-            "message": "Доступ запрещён. Только для администраторов."
-        }, status=403)
-    
-    return Response({
-        "status": "success",
-        "message": "Добро пожаловать на страницу администратора!",
-        "user": request.user.username,
-        "role": request.user.role
-    })
-
+@csrf_exempt
 @api_view(["POST"])
-def api_login(request):
-    """POST аутентификация (заглушка для ЛР4)"""
-    return Response({"status": "success", "message": "Аутентификация будет в ЛР4"})
-
-
-@api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def api_logout(request):
-    """POST деавторизация (заглушка для ЛР4)"""
-    return Response({"status": "success", "message": "Деавторизация будет в ЛР4"})
+    """POST деавторизация"""
+    from django.contrib.auth import logout as auth_logout
+    
+    auth_logout(request)
+    return Response({"status": "success", "message": "Деавторизация выполнена"})
