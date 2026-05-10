@@ -32,8 +32,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = async () => {
-    await axios.post('/api/logout/', {}, { withCredentials: true });
-    setUser(null);
+    try {
+      await axios.post('http://localhost:8000/api/logout/', {}, { withCredentials: true });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+    }
   };
 
   const isAdmin = user?.role === 'ADMIN';

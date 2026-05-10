@@ -92,7 +92,7 @@ def raw_login(request):
             username = data.get('username')
             password = data.get('password')
             
-            from django.contrib.auth import authenticate, login
+           
             user = authenticate(username=username, password=password)
             
             if user:

@@ -82,7 +82,14 @@ LANGUAGE_CODE = "ru-ru"
 TIME_ZONE = "Europe/Moscow"
 USE_I18N = True
 USE_TZ = True
+
+# Настройки статики
 STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # CORS настройки для фронтенда
@@ -149,6 +156,9 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'API для маркетплейса электронной техники',
     'VERSION': 'v1',
     'SERVE_INCLUDE_SCHEMA': False,
+    'SWAGGER_UI_SETTINGS': {
+        'persistAuthorization': True,
+    },
 }
 
 # Настройки логирования

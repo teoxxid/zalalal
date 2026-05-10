@@ -4,9 +4,10 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', include('main.urls')),  # старый сайт
     path('api/', include('main.urls')),
-    path('', include('main.urls')),  # ← главная страница (каталог товаров)
+    
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path('', include('django_prometheus.urls')),  # ← метрики (лучше вынести на /metrics)
+    path('', include('django_prometheus.urls')),
 ]
