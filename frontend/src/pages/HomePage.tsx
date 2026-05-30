@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../services/api';
+import { api, MINIO_PUBLIC_ENDPOINT } from '../services/api';
 
 interface Service {
   id: number;
@@ -72,7 +72,7 @@ const HomePage: React.FC<HomePageProps> = ({ user, services: propServices }) => 
             playsInline
             className="hero-background-video"
           >
-            <source src="http://localhost:9000/services/background.mp4" type="video/mp4" />
+            <source src={`${MINIO_PUBLIC_ENDPOINT}/services/background.mp4`} type="video/mp4" />
           </video>
           <div className="hero-overlay">
             <h1>Маркетплейс электронной техники</h1>

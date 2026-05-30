@@ -65,9 +65,24 @@ python manage.py runserver
 ## Запуск через Docker (из корня проекта)
 
 ```
-cd C:\Users\teoxxid\marketplace
+cd D:\marketplace
 docker-compose up --build
 ```
+Docker Compose автоматически:
+
+- поднимает MinIO на `http://localhost:9000` и консоль на `http://localhost:9001`;
+- создаёт bucket `services`;
+- выдаёт публичное чтение файлов bucket;
+- загружает файлы из `minio-files`;
+- применяет миграции Django;
+- создаёт демо-товары с `image_key`/`video_key`, совпадающими с файлами MinIO.
+
+Для ручной локальной инициализации демо-товаров:
+
+```
+python manage.py seed_demo_data
+```
+
 ## API Endpoints
 
 | Метод | URL | Описание |
@@ -101,14 +116,18 @@ docker-compose up --build
 
 | Переменная | Описание | Пример |
 |------------|----------|--------|
-| `DEBUG` | Режим отладки | `True` |
-| `SECRET_KEY` | Секретный ключ Django | `django-insecure-key` |
+| `DJANGO_DEBUG` | Режим отладки | `True` |
+| `DJANGO_SECRET_KEY` | Секретный ключ Django | `django-insecure-key` |
 | `ALLOWED_HOSTS` | Разрешённые хосты | `localhost,127.0.0.1` |
 | `DB_NAME` | Название базы данных | `marketplace` |
 | `DB_USER` | Пользователь БД | `user` |
 | `DB_PASSWORD` | Пароль БД | `password` |
 | `DB_HOST` | Хост БД | `postgres` |
 | `DB_PORT` | Порт БД | `5432` |
+| `MINIO_ENDPOINT` | Адрес MinIO для backend | `localhost:9000`, в Docker `minio:9000` |
+| `MINIO_PUBLIC_ENDPOINT` | Адрес MinIO для браузера | `http://localhost:9000` |
+| `MINIO_BUCKET` | Bucket с файлами товаров | `services` |
+| `MINIO_SEED_DIR` | Папка исходных файлов для seed | `../minio-files` |
 
 ## Код-стайл
 

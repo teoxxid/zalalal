@@ -8,6 +8,9 @@ export const API_ORIGIN = import.meta.env.DEV
   : normalizeBaseUrl(import.meta.env.VITE_API_TARGET || window.location.origin);
 
 export const API_BASE_URL = `${API_ORIGIN}/api`;
+export const MINIO_PUBLIC_ENDPOINT = normalizeBaseUrl(
+  import.meta.env.VITE_MINIO_PUBLIC_ENDPOINT || 'http://localhost:9000'
+);
 
 export const api = axios.create({
   baseURL: API_BASE_URL,

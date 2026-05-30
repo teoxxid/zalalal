@@ -32,6 +32,7 @@ from .serializers import (
     ServiceSerializer,
     UserSerializer,
 )
+from .minio_client import get_image_url, get_video_url
 
 logger = logging.getLogger(__name__)
 cache_logger = logging.getLogger("cache")
@@ -105,11 +106,11 @@ def _simple_slugify(text: str) -> str:
 
 
 def _get_service_image_url(image_key: str) -> str:
-    return f"http://localhost:9000/services/{image_key}" if image_key else None
+    return get_image_url(image_key)
 
 
 def _get_service_video_url(video_key: str) -> str | None:
-    return f"http://localhost:9000/services/{video_key}" if video_key else None
+    return get_video_url(video_key)
 
 
 def _get_cart_info(user) -> tuple[Order | None, int]:
@@ -129,7 +130,7 @@ def index(request):
         service.image_url = _get_service_image_url(service.image_key)
 
     current_order, cart_items_count = _get_cart_info(request.user)
-    background_video_url = "http://localhost:9000/services/background.mp4"
+    background_video_url = get_video_url("background.mp4")
 
     return render(
         request,

@@ -24,6 +24,16 @@ REDIS_PORT = os.getenv("REDIS_PORT", "6379")
 REDIS_DB = os.getenv("REDIS_DB", "1")
 REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 
+# MinIO configuration. Backend code uses MINIO_ENDPOINT, browser-facing URLs use
+# MINIO_PUBLIC_ENDPOINT because those addresses are different inside Docker.
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
+MINIO_PUBLIC_ENDPOINT = os.getenv("MINIO_PUBLIC_ENDPOINT", "http://localhost:9000").rstrip("/")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET", "services")
+MINIO_SECURE = os.getenv("MINIO_SECURE", "False") == "True"
+MINIO_SEED_DIR = Path(os.getenv("MINIO_SEED_DIR", BASE_DIR.parent / "minio-files"))
+
 # Allowed hosts and CORS
 ALLOWED_HOSTS = [
     "localhost",

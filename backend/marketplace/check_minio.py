@@ -1,9 +1,15 @@
+import os
+
 from minio import Minio
 
-# Настройки подключения
+
 client = Minio(
-    "localhost:9000", access_key="minioadmin", secret_key="minioadmin", secure=False
+    os.getenv("MINIO_ENDPOINT", "localhost:9000"),
+    access_key=os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
+    secret_key=os.getenv("MINIO_SECRET_KEY", "minioadmin"),
+    secure=os.getenv("MINIO_SECURE", "False") == "True",
 )
+bucket_name = os.getenv("MINIO_BUCKET", "services")
 
 # Проверяем подключение
 try:
@@ -11,9 +17,8 @@ try:
     print("Подключение к Minio успешно!")
     print("Доступные buckets:", [b.name for b in buckets])
 
-    # Проверяем наличие файлов в bucket services
-    objects = client.list_objects("services")
-    print("\nФайлы в bucket services:")
+    objects = client.list_objects(bucket_name)
+    print(f"\nФайлы в bucket {bucket_name}:")
     for obj in objects:
         print(f" - {obj.object_name}")
 

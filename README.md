@@ -8,6 +8,8 @@
 marketplace/
 ├── backend/ # Django бэкенд
 ├── frontend/ # React фронтенд
+├── minio-files/ # Исходные медиафайлы для загрузки в MinIO
+├── minio-data/ # Локальные данные MinIO при запуске через Docker
 ├── ruff.toml # Конфиг Ruff (линтер + форматтер)
 ├── .pre-commit-config.yaml # Pre-commit хуки
 ├── docker-compose.yml
@@ -19,11 +21,16 @@ marketplace/
 ```
 docker-compose up --build
 ```
+При запуске через Docker bucket `services` создаётся автоматически, файлы из `minio-files` загружаются в MinIO, а демо-товары создаются в базе с правильными `image_key` и `video_key`.
+
+Если папка проекта на другом компьютере лежит как `D:\marketplace`, дополнительных абсолютных путей менять не нужно: Docker Compose использует относительные `./minio-data` и `./minio-files`.
+
 ## Ссылки
 
 - **React фронтенд:** http://localhost:5173
 - **Django API:** http://localhost:8000/api/services/
-- **MinIO:** http://localhost:9001
+- **MinIO Console:** http://localhost:9001
+- **MinIO public files:** http://localhost:9000/services/
 - **Adminer:** http://localhost:8080
 
 ## Документация

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Order, OrderItem, Service, User
+from .minio_client import get_image_url, get_video_url
 
 
 class ServiceSerializer(serializers.ModelSerializer):
@@ -21,14 +22,10 @@ class ServiceSerializer(serializers.ModelSerializer):
         ]
 
     def get_image_url(self, obj):
-        if obj.image_key:
-            return f"http://localhost:9000/services/{obj.image_key}"
-        return None
+        return get_image_url(obj.image_key)
 
     def get_video_url(self, obj):
-        if obj.video_key:
-            return f"http://localhost:9000/services/{obj.video_key}"
-        return None
+        return get_video_url(obj.video_key)
 
 
 class OrderItemSerializer(serializers.ModelSerializer):

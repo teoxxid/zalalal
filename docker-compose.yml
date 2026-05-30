@@ -4,14 +4,27 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DEBUG=True
+      - DJANGO_DEBUG=True
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_PUBLIC_ENDPOINT=http://localhost:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET=services
     volumes:
       - ./backend:/app
     depends_on:
-      - postgres
-      - minio
-      - redis
-    command: python manage.py runserver 0.0.0.0:8000
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py seed_demo_data --skip-minio &&
+             python manage.py runserver 0.0.0.0:8000"
     networks:
       - default
 
@@ -60,8 +73,24 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - D:/marketplace/minio-data:/data
+      - ./minio-data:/data
     command: server /data --console-address ":9001"
+    networks:
+      - default
+
+  minio-init:
+    image: minio/mc
+    depends_on:
+      - minio
+    volumes:
+      - ./minio-files:/seed:ro
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 2; done;
+      mc mb --ignore-existing local/services;
+      mc anonymous set download local/services;
+      mc mirror --overwrite /seed local/services;
+      "
     networks:
       - default
 
