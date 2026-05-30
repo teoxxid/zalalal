@@ -18,9 +18,28 @@ marketplace/
 
 ## Быстрый запуск
 
+После `git pull origin main` на Windows:
+
 ```
-docker-compose up --build
+scripts\start.bat
 ```
+
+Скрипт проверит Docker Desktop, попробует запустить его, дождётся Docker Engine и выполнит `docker compose up --build`.
+
+Если запускаете вручную, сначала откройте Docker Desktop и дождитесь статуса Engine running, затем:
+
+```
+docker compose up --build
+```
+
+Ошибка вида:
+
+```
+open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified
+```
+
+означает, что Docker Desktop не запущен, не установлен или выключен Linux/WSL 2 engine. Это не ошибка MinIO и не ошибка проекта: `docker compose` не может подключиться к Docker Engine до чтения/запуска контейнеров.
+
 При запуске через Docker bucket `services` создаётся автоматически, файлы из `minio-files` загружаются в MinIO, а демо-товары создаются в базе с правильными `image_key` и `video_key`.
 
 Если папка проекта на другом компьютере лежит как `D:\marketplace`, дополнительных абсолютных путей менять не нужно: Docker Compose использует относительные `./minio-data` и `./minio-files`.
