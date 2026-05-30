@@ -1,18 +1,13 @@
 import axios from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 
-/**
- * Нормализует базовый URL: удаляет кавычки и завершающие слеши
- */
-const normalizeBaseUrl = (value?: string): string => {
-  const rawValue = value || 'http://localhost:8000';
-  return rawValue.replace(/["']/g, '').replace(/\/+$/, '');
-};
+const normalizeBaseUrl = (value?: string): string => (value || '').replace(/["']/g, '').replace(/\/+$/, '');
 
-const API_TARGET = normalizeBaseUrl(import.meta.env.VITE_API_TARGET);
-const API_BASE_URL = API_TARGET.endsWith('/api') 
-  ? API_TARGET 
-  : `${API_TARGET}/api`;
+export const API_ORIGIN = import.meta.env.DEV
+  ? ''
+  : normalizeBaseUrl(import.meta.env.VITE_API_TARGET || window.location.origin);
+
+export const API_BASE_URL = `${API_ORIGIN}/api`;
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -56,11 +51,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
     }
     return Promise.reject(error);
   }

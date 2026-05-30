@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { api } from '../services/api';
 
 interface Service {
   id: number;
@@ -25,7 +26,7 @@ const HomePage: React.FC<HomePageProps> = ({ user, services: propServices }) => 
   const [popularServices, setPopularServices] = useState<Service[]>([]);
   const [loadingServices, setLoadingServices] = useState(true);
   
-  const isMockMode = import.meta.env.MODE === 'mock' || !import.meta.env.VITE_API_URL;
+  const isMockMode = import.meta.env.MODE === 'mock';
 
   useEffect(() => {
     if (propServices && propServices.length > 0) {
@@ -42,9 +43,7 @@ const HomePage: React.FC<HomePageProps> = ({ user, services: propServices }) => 
     
     const fetchPopular = async () => {
       try {
-        const res = await fetch('/api/services/?limit=4');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+        const { data: json } = await api.get('/services/', { params: { limit: 4 } });
         const data = json.results || json.data || json;
         const servicesList = Array.isArray(data) ? data : [];
         setPopularServices(servicesList.slice(0, 4));

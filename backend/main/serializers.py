@@ -33,10 +33,23 @@ class ServiceSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     service = ServiceSerializer(read_only=True)
+    service_id = serializers.IntegerField(source="service.id", read_only=True)
+    service_name = serializers.CharField(source="service.name", read_only=True)
+    service_price = serializers.DecimalField(
+        source="service.price", max_digits=10, decimal_places=2, read_only=True
+    )
 
     class Meta:
         model = OrderItem
-        fields = ["id", "service", "quantity", "price_at_time"]
+        fields = [
+            "id",
+            "service",
+            "service_id",
+            "service_name",
+            "service_price",
+            "quantity",
+            "price_at_time",
+        ]
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -50,12 +63,29 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class OrderListSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField()
+    user = serializers.SerializerMethodField()
     items_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Order
-        fields = ["id", "user", "status", "submitted_at", "total_amount", "items_count"]
+        fields = [
+            "id",
+            "user",
+            "status",
+            "created_at",
+            "submitted_at",
+            "completed_at",
+            "total_amount",
+            "total_items",
+            "items_count",
+        ]
+
+    def get_user(self, obj):
+        return {
+            "id": obj.user_id,
+            "username": obj.user.username,
+            "email": obj.user.email,
+        }
 
 
 class UserSerializer(serializers.ModelSerializer):

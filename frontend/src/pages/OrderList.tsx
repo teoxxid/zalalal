@@ -154,7 +154,7 @@ const OrderList: React.FC = () => {
                   </span>
                 </td>
                 <td>{new Date(order.created_at).toLocaleDateString('ru-RU')}</td>
-                <td className="order-amount">{order.total_amount?.toLocaleString('ru-RU')} ₽</td>
+                <td className="order-amount">{Number(order.total_amount || 0).toLocaleString('ru-RU')} ₽</td>
                 <td>
                   <Link to={`/order/${order.id}/`} className="table-btn view-btn">
                     Просмотр

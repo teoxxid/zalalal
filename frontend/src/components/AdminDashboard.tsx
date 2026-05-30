@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { showNotification } from '../store/slices/uiSlice';
+import { api } from '../services/api';
 
 interface User {
   id: number;
@@ -11,9 +12,9 @@ interface User {
 
 interface Order {
   id: number;
-  user: { id: number; username: string };
+  user: { id: number; username: string } | string;
   status: 'draft' | 'submitted' | 'completed' | 'rejected' | 'deleted';
-  total_amount: number;
+  total_amount: number | string;
   total_items: number;
   created_at: string;
 }
@@ -49,27 +50,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [orderFilter, setOrderFilter] = useState<'all' | 'submitted' | 'completed' | 'rejected'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [orderStats, setOrderStats] = useState<OrderStats>({
     total: 0, pending: 0, completed: 0, rejected: 0, revenue: 0,
   });
 
   useEffect(() => {
     fetchAdminData();
-    const interval = activeTab === 'orders' ? setInterval(fetchAdminData, 30000) : undefined;
+    const interval = activeTab === 'orders' ? setInterval(fetchAdminData, 5000) : undefined;
     return () => { if (interval) clearInterval(interval); };
-  }, [activeTab]);
+  }, [activeTab, orderFilter, dateFrom, dateTo]);
 
   const fetchAdminData = async () => {
     setLoading(true);
     try {
+      const params = {
+        status: orderFilter !== 'all' ? orderFilter : undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+      };
       const [ordersRes, usersRes, servicesRes] = await Promise.allSettled([
-        fetch('/api/orders/?exclude_draft=true', { credentials: 'include' }),
-        fetch('/api/users/', { credentials: 'include' }),
-        fetch('/api/services/', { credentials: 'include' }),
+        api.get('/orders/', { params }),
+        api.get('/users/'),
+        api.get('/services/'),
       ]);
 
-      if (ordersRes.status === 'fulfilled' && ordersRes.value.ok) {
-        const data = await ordersRes.value.json();
+      if (ordersRes.status === 'fulfilled') {
+        const data = ordersRes.value.data;
         const ordersList: Order[] = data.data || data || [];
         setOrders(ordersList);
         setOrderStats({
@@ -77,15 +85,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
           pending: ordersList.filter(o => o.status === 'submitted').length,
           completed: ordersList.filter(o => o.status === 'completed').length,
           rejected: ordersList.filter(o => o.status === 'rejected').length,
-          revenue: ordersList.filter(o => o.status === 'completed').reduce((sum, o) => sum + (o.total_amount || 0), 0),
+          revenue: ordersList.filter(o => o.status === 'completed').reduce((sum, o) => sum + Number(o.total_amount || 0), 0),
         });
       }
-      if (usersRes.status === 'fulfilled' && usersRes.value.ok) {
-        const data = await usersRes.value.json();
+      if (usersRes.status === 'fulfilled') {
+        const data = usersRes.value.data;
         setUsers(data.data || data || []);
       }
-      if (servicesRes.status === 'fulfilled' && servicesRes.value.ok) {
-        const data = await servicesRes.value.json();
+      if (servicesRes.status === 'fulfilled') {
+        const data = servicesRes.value.data;
         setServices(data.data || data || []);
       }
     } catch (error) {
@@ -101,16 +109,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
     setActionLoading(orderId);
     try {
       const endpoint = newStatus === 'completed' ? `/api/orders/${orderId}/complete/` : `/api/orders/${orderId}/reject/`;
-      const response = await fetch(endpoint, {
-        method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-      });
-      if (response.ok) {
+      const response = await api.put(endpoint.replace('/api', ''));
+      if (response.data?.status === 'success') {
         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
         setOrderStats(prev => ({
           ...prev,
           [newStatus]: prev[newStatus] + 1,
           pending: prev.pending - 1,
-          revenue: newStatus === 'completed' ? prev.revenue + (orders.find(o => o.id === orderId)?.total_amount || 0) : prev.revenue,
+          revenue: newStatus === 'completed' ? prev.revenue + Number(orders.find(o => o.id === orderId)?.total_amount || 0) : prev.revenue,
         }));
         dispatch(showNotification({ type: 'success', message: `Заявка #${orderId} ${newStatus === 'completed' ? 'завершена' : 'отклонена'}` }));
       } else {
@@ -125,11 +131,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
 
   const handleUserRoleChange = async (userId: number, newRole: 'USER' | 'ADMIN') => {
     try {
-      const res = await fetch(`/api/users/${userId}/`, {
-        method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: newRole }),
-      });
-      if (res.ok) {
+      const res = await api.patch(`/users/${userId}/`, { role: newRole });
+      if (res.data?.status === 'success') {
         setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
         dispatch(showNotification({ type: 'success', message: `Роль изменена на ${newRole === 'ADMIN' ? 'Администратор' : 'Пользователь'}` }));
       } else {
@@ -156,7 +159,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
 
   const filteredOrders = orders.filter(order => {
     const matchesStatus = orderFilter === 'all' || order.status === orderFilter;
-    const matchesSearch = !searchQuery || order.id.toString().includes(searchQuery) || order.user.username.toLowerCase().includes(searchQuery.toLowerCase());
+    const username = typeof order.user === 'string' ? order.user : order.user.username;
+    const matchesSearch = !searchQuery || order.id.toString().includes(searchQuery) || username.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
@@ -174,7 +178,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
       <div className="admin-header">
         <div>
           <h1 className="admin-page-title">Панель администратора</h1>
-          <p className="admin-page-subtitle">Управление заявками, пользователями и товарами</p>
+          <p className="admin-page-subtitle">Модератор: {currentUser.username}</p>
         </div>
       </div>
 
@@ -259,11 +263,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <input 
                   type="text" 
-                  placeholder="Поиск..." 
+                  placeholder="ID или пользователь..." 
                   value={searchQuery} 
                   onChange={(e) => setSearchQuery(e.target.value)} 
                   className="filter-input" 
                   style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #e0e0e0', minWidth: '200px' }} 
+                />
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="filter-input"
+                  style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #e0e0e0' }}
+                />
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="filter-input"
+                  style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #e0e0e0' }}
                 />
                 <select 
                   value={orderFilter} 
@@ -296,8 +314,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
                   {filteredOrders.length > 0 ? filteredOrders.map((order) => (
                     <tr key={order.id}>
                       <td>#{order.id}</td>
-                      <td>{order.user.username}</td>
-                      <td>{order.total_amount?.toLocaleString('ru-RU')} ₽</td>
+                      <td>{typeof order.user === 'string' ? order.user : order.user.username}</td>
+                      <td>{Number(order.total_amount || 0).toLocaleString('ru-RU')} ₽</td>
                       <td>{order.total_items}</td>
                       <td>
                         <span 

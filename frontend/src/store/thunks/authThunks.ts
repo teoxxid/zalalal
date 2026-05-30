@@ -1,7 +1,6 @@
-﻿import { createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
-
-const API_BASE = import.meta.env.VITE_API_TARGET || 'https://192.168.0.103:8443';
+import { createAsyncThunk } from '@reduxjs/toolkit';
+import { AuthService } from '../../api/services/AuthService';
+import { api } from '../../services/api';
 
 export interface UserData {
   id?: number;
@@ -15,34 +14,21 @@ export interface AuthResponse {
   token?: string | null;
 }
 
-const apiClient = axios.create({
-  baseURL: API_BASE,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// 🔹 Интерцептор для CSRF-токена (Django)
-const getCSRFToken = (): string | null => {
-  const name = 'csrftoken';
-  const cookieValue = document.cookie
-    .split('; ')
-    .find(row => row.startsWith(`${name}=`))
-    ?.split('=')[1];
-  return cookieValue ? decodeURIComponent(cookieValue) : null;
+const normalizeUser = (payload: any): UserData => {
+  const data = payload?.data || payload || {};
+  return {
+    id: data.id,
+    username: data.username,
+    role: data.role || 'USER',
+    email: data.email,
+  };
 };
 
-apiClient.interceptors.request.use((config) => {
-  const method = config.method?.toLowerCase();
-  if (method && ['post', 'put', 'patch', 'delete'].includes(method)) {
-    const csrfToken = getCSRFToken();
-    if (csrfToken && config.headers) {
-      config.headers['X-CSRFToken'] = csrfToken;
-    }
-  }
-  return config;
-});
+const getErrorMessage = (error: any, fallback: string): string => {
+  const body = error?.body || error?.response?.data || error;
+  const message = body?.message || body?.error || body?.errors || fallback;
+  return typeof message === 'string' ? message : JSON.stringify(message);
+};
 
 export const loginThunk = createAsyncThunk<
   AuthResponse,
@@ -52,26 +38,12 @@ export const loginThunk = createAsyncThunk<
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
-      // 🔹 Отправляем данные ПЛОСКО: { username, password }
-      const res = await apiClient.post('/api/login/', {
-        username: credentials.username,
-        password: credentials.password,
+      const result = await AuthService.apiLoginCreate({
+        requestBody: credentials,
       });
-      
-      const responseData = res.data?.data || res.data;
-      
-      return {
-        user: {
-          username: responseData.username,
-          role: responseData.role || 'USER',
-          email: responseData.email,
-          id: responseData.id,
-        },
-        token: null,
-      };
+      return { user: normalizeUser(result), token: null };
     } catch (err: any) {
-      const message = err.response?.data?.message || err.response?.data?.errors || 'Ошибка входа';
-      return rejectWithValue(typeof message === 'string' ? message : JSON.stringify(message));
+      return rejectWithValue(getErrorMessage(err, 'Ошибка входа'));
     }
   }
 );
@@ -84,26 +56,22 @@ export const registerThunk = createAsyncThunk<
   'auth/register',
   async (data, { rejectWithValue }) => {
     try {
-      const res = await apiClient.post('/api/register/', {
-        username: data.username,
-        email: data.email,
-        password: data.password,
-      });
-      
-      const responseData = res.data?.data || res.data;
-      
-      return {
-        user: {
-          username: responseData.username,
-          role: responseData.role || 'USER',
-          email: responseData.email,
-          id: responseData.id,
+      await AuthService.apiRegisterCreate({
+        requestBody: {
+          username: data.username,
+          email: data.email,
+          password: data.password,
         },
-        token: null,
-      };
+      });
+      const loginResult = await AuthService.apiLoginCreate({
+        requestBody: {
+          username: data.username,
+          password: data.password,
+        },
+      });
+      return { user: normalizeUser(loginResult), token: null };
     } catch (err: any) {
-      const message = err.response?.data?.message || err.response?.data?.errors || 'Ошибка регистрации';
-      return rejectWithValue(typeof message === 'string' ? message : JSON.stringify(message));
+      return rejectWithValue(getErrorMessage(err, 'Ошибка регистрации'));
     }
   }
 );
@@ -116,10 +84,10 @@ export const logoutThunk = createAsyncThunk<
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
-      await apiClient.post('/api/logout/');
+      await AuthService.apiLogoutCreate();
       return true;
-    } catch (err) {
-      return rejectWithValue('Ошибка выхода');
+    } catch (err: any) {
+      return rejectWithValue(getErrorMessage(err, 'Ошибка выхода'));
     }
   }
 );
@@ -132,24 +100,10 @@ export const checkAuthStatusThunk = createAsyncThunk<
   'auth/checkStatus',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await apiClient.get('/api/auth/me/');
-      if (res.data?.status === 'success' && res.data.data) {
-        return {
-          user: {
-            id: res.data.data.id,
-            username: res.data.data.username,
-            role: res.data.data.role,
-            email: res.data.data.email,
-          },
-          token: null,
-        };
-      }
-      return rejectWithValue('Not authenticated');
+      const res = await api.get('/auth/me/');
+      return { user: normalizeUser(res.data), token: null };
     } catch (err: any) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
-        return rejectWithValue('Not authenticated');
-      }
-      return rejectWithValue('Ошибка проверки авторизации');
+      return rejectWithValue(getErrorMessage(err, 'Not authenticated'));
     }
   }
 );
@@ -162,25 +116,11 @@ export const setAuthFromStorage = createAsyncThunk<
   'auth/setFromStorage',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await apiClient.get('/api/auth/me/');
-      if (res.data?.status === 'success' && res.data.data) {
-        return {
-          user: {
-            id: res.data.data.id,
-            username: res.data.data.username,
-            role: res.data.data.role,
-            email: res.data.data.email,
-          },
-          token: null,
-        };
-      }
-      localStorage.removeItem('auth_token');
+      const res = await api.get('/auth/me/');
+      return { user: normalizeUser(res.data), token: null };
+    } catch (err: any) {
       localStorage.removeItem('user');
-      return rejectWithValue('Session expired');
-    } catch (err) {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('user');
-      return rejectWithValue('No valid session');
+      return rejectWithValue(getErrorMessage(err, 'No valid session'));
     }
   }
 );

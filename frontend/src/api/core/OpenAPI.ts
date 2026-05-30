@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { ApiRequestOptions } from './ApiRequestOptions';
+import { API_ORIGIN } from '../../services/api';
 
 type Resolver<T> = (options: ApiRequestOptions) => Promise<T>;
 type Headers = Record<string, string>;
@@ -20,7 +21,7 @@ export type OpenAPIConfig = {
 };
 
 export const OpenAPI: OpenAPIConfig = {
-  BASE: import.meta.env.VITE_API_TARGET || 'https://192.168.0.103:8443',
+  BASE: API_ORIGIN,
   VERSION: '1.0.0',
   WITH_CREDENTIALS: true,
   CREDENTIALS: 'include',

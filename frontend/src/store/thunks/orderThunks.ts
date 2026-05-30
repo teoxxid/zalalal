@@ -1,6 +1,9 @@
-﻿import { createAsyncThunk } from '@reduxjs/toolkit';
-import { api } from '../../services/api';
-import { setCart, addItem, removeItem, updateQuantity } from '../slices/cartSlice';
+import { createAsyncThunk } from '@reduxjs/toolkit';
+import { ServicesService } from '../../api/services/ServicesService';
+import { OrdersService } from '../../api/services/OrdersService';
+import { OrderItemsService } from '../../api/services/OrderItemsService';
+import { setCart, addItem, removeItem, updateQuantity, clearCart } from '../slices/cartSlice';
+import { updateOrder } from '../slices/ordersSlice';
 import { showNotification } from '../slices/uiSlice';
 
 type FetchOrdersParams = {
@@ -9,103 +12,82 @@ type FetchOrdersParams = {
   date_to?: string;
 };
 
+const readPayload = (response: any) => response?.data ?? response;
+
+const getErrorMessage = (error: any, fallback: string): string => {
+  const body = error?.body || error?.response?.data || error;
+  const message = body?.message || body?.error || body?.errors || fallback;
+  return typeof message === 'string' ? message : JSON.stringify(message);
+};
+
+const toCartItems = (items: any[] = []) => items.map((item) => ({
+  serviceId: Number(item.serviceId ?? item.service_id ?? item.service?.id ?? item.service),
+  name: item.name ?? item.service_name ?? item.service?.name ?? 'Товар',
+  price: Number(item.price ?? item.service_price ?? item.price_at_time ?? item.service?.price ?? 0),
+  quantity: Number(item.quantity ?? 1),
+  image_url: item.image_url ?? item.service?.image_url,
+}));
+
 export const fetchCartIconThunk = createAsyncThunk(
   'cart/fetchIcon',
   async (_, { dispatch, rejectWithValue }) => {
     try {
-      const response = await api.get('/orders/cart/');
-      
-      if (response.data?.status === 'success' && response.data.data) {
-        const { order_id, items_count } = response.data.data;
-        
-        if (order_id !== null && order_id !== undefined) {
-          dispatch(setCart({ orderId: order_id, preserveItems: true }));
-        }
-        return { order_id, items_count };
-      }
-      return { order_id: null, items_count: 0 };
+      const data = readPayload(await OrdersService.apiOrdersCartRetrieve());
+      const orderId = data.order_id ?? null;
+      const items = toCartItems(data.items || []);
+      dispatch(setCart({ orderId, items }));
+      return { order_id: orderId, items_count: data.items_count ?? items.length };
     } catch (err: any) {
-      if (err.response?.status === 401 || err.response?.status === 403) {
+      if (err.status === 401 || err.status === 403) {
+        dispatch(clearCart());
         return { order_id: null, items_count: 0 };
       }
-      return rejectWithValue('Ошибка получения корзины');
+      return rejectWithValue(getErrorMessage(err, 'Ошибка получения корзины'));
     }
   }
 );
 
 export const addToCartThunk = createAsyncThunk(
   'cart/add',
-  async (serviceId: number, { dispatch, rejectWithValue, getState }) => {
+  async (serviceId: number, { dispatch, rejectWithValue }) => {
     try {
-      const serviceRes = await api.get(`/services/${serviceId}/`);
-      const serviceData: any = serviceRes.data?.data || serviceRes.data;
-      
-      const response = await api.post('/order-items/add/', {
-        service_id: serviceId,
-        quantity: 1
-      });
-      
-      if (response.data?.status === 'success' && response.data.data) {
-        const { order_id, service_name, service_price, quantity } = response.data.data;
-        
-        dispatch(addItem({
-          serviceId,
-          name: service_name || serviceData?.name || 'Товар',
-          price: service_price || serviceData?.price || 0,
-          quantity,
-          image_url: serviceData?.image_url,
-        }));
-        
-        const state: any = getState();
-        if (state.cart.orderId !== order_id && order_id) {
-          dispatch(setCart({ orderId: order_id, items: state.cart.items || [], preserveItems: true }));
-        }
-        
-        return response.data.data;
-      }
-      return rejectWithValue('Не удалось добавить товар');
+      const servicePayload = readPayload(await ServicesService.apiServicesRetrieve2({ serviceId }));
+      const responsePayload = readPayload(await OrderItemsService.apiOrderItemsAddCreate({
+        requestBody: { service_id: serviceId, quantity: 1 },
+      }));
+
+      dispatch(addItem({
+        serviceId,
+        name: responsePayload.service_name || servicePayload?.name || 'Товар',
+        price: Number(responsePayload.service_price || servicePayload?.price || 0),
+        quantity: Number(responsePayload.quantity || 1),
+        image_url: servicePayload?.image_url,
+      }));
+      dispatch(setCart({ orderId: responsePayload.order_id ?? null, preserveItems: true }));
+
+      return responsePayload;
     } catch (err: any) {
-      console.error('addToCartThunk error:', err);
-      
-      try {
-        const serviceRes = await api.get(`/services/${serviceId}/`);
-        const serviceData: any = serviceRes.data?.data || serviceRes.data;
-        
-        dispatch(addItem({
-          serviceId,
-          name: serviceData?.name || `Товар #${serviceId}`,
-          price: serviceData?.price || 0,
-          quantity: 1,
-          image_url: serviceData?.image_url,
-        }));
-        
-        dispatch(showNotification({
-          type: 'info',
-          message: 'Товар добавлен локально (ошибка синхронизации)'
-        }));
-        
-        return { isFallback: true, serviceId };
-      } catch {
-        // Игнорируем
-      }
-      return rejectWithValue(err.response?.data?.message || 'Ошибка добавления');
+      return rejectWithValue(getErrorMessage(err, 'Ошибка добавления'));
     }
   }
 );
 
 export const updateCartItemThunk = createAsyncThunk(
   'cart/update',
-  async ({ orderId, serviceId, quantity }: { orderId: number; serviceId: number; quantity: number }, { dispatch, rejectWithValue }) => {
+  async (
+    { orderId, serviceId, quantity }: { orderId: number; serviceId: number; quantity: number },
+    { dispatch, rejectWithValue },
+  ) => {
     try {
-      const response = await api.put(`/order-items/${orderId}/${serviceId}/update/`, { quantity });
-      
-      if (response.data?.status === 'success') {
-        dispatch(updateQuantity({ serviceId, quantity }));
-        return response.data.data;
-      }
-      return rejectWithValue('Не удалось обновить');
+      const responsePayload = readPayload(await OrderItemsService.apiOrderItemsUpdateUpdate({
+        orderId,
+        serviceId,
+        requestBody: { quantity },
+      }));
+      dispatch(updateQuantity({ serviceId, quantity }));
+      return responsePayload;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Ошибка');
+      return rejectWithValue(getErrorMessage(err, 'Ошибка обновления'));
     }
   }
 );
@@ -114,16 +96,12 @@ export const removeFromCartThunk = createAsyncThunk(
   'cart/remove',
   async ({ orderId, serviceId }: { orderId: number; serviceId: number }, { dispatch, rejectWithValue }) => {
     try {
-      const response = await api.delete(`/order-items/${orderId}/${serviceId}/delete/`);
-      
-      if (response.data?.status === 'success') {
-        dispatch(removeItem(serviceId));
-        dispatch(showNotification({ type: 'success', message: 'Товар удалён' }));
-        return true;
-      }
-      return rejectWithValue('Не удалось удалить');
+      await OrderItemsService.apiOrderItemsDeleteDestroy({ orderId, serviceId });
+      dispatch(removeItem(serviceId));
+      dispatch(showNotification({ type: 'success', message: 'Товар удалён' }));
+      return true;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Ошибка');
+      return rejectWithValue(getErrorMessage(err, 'Ошибка удаления'));
     }
   }
 );
@@ -132,16 +110,13 @@ export const submitOrderThunk = createAsyncThunk(
   'orders/submit',
   async (orderId: number, { dispatch, rejectWithValue }) => {
     try {
-      const response = await api.put(`/orders/${orderId}/submit/`);
-      
-      if (response.data?.status === 'success') {
-        dispatch(setCart({ orderId: null, items: [] }));
-        dispatch(showNotification({ type: 'success', message: 'Заказ оформлен!' }));
-        return response.data.data;
-      }
-      return rejectWithValue(response.data.message || 'Ошибка');
+      const responsePayload = readPayload(await OrdersService.apiOrdersSubmitUpdate({ orderId }));
+      dispatch(clearCart());
+      dispatch(updateOrder(responsePayload));
+      dispatch(showNotification({ type: 'success', message: 'Заявка оформлена' }));
+      return responsePayload;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Ошибка сети');
+      return rejectWithValue(getErrorMessage(err, 'Ошибка оформления'));
     }
   }
 );
@@ -150,14 +125,13 @@ export const fetchOrdersThunk = createAsyncThunk(
   'orders/fetchList',
   async (params: FetchOrdersParams | undefined, { rejectWithValue }) => {
     try {
-      const response = await api.get('/orders/', { params });
-      
-      if (response.data?.status === 'success' && response.data.data) {
-        return response.data.data;
-      }
-      return rejectWithValue(response.data.message || 'Ошибка получения заказов');
+      return readPayload(await OrdersService.apiOrdersRetrieve({
+        status: params?.status,
+        dateFrom: params?.date_from,
+        dateTo: params?.date_to,
+      }));
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Ошибка сети');
+      return rejectWithValue(getErrorMessage(err, 'Ошибка получения заявок'));
     }
   }
 );
@@ -166,14 +140,9 @@ export const fetchOrderThunk = createAsyncThunk(
   'orders/fetchDetail',
   async (orderId: number, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/orders/${orderId}/`);
-      
-      if (response.data?.status === 'success' && response.data.data) {
-        return response.data.data;
-      }
-      return rejectWithValue(response.data.message || 'Ошибка получения заказа');
+      return readPayload(await OrdersService.apiOrdersRetrieve2({ orderId }));
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Ошибка сети');
+      return rejectWithValue(getErrorMessage(err, 'Ошибка получения заявки'));
     }
   }
 );
@@ -182,14 +151,12 @@ export const completeOrderThunk = createAsyncThunk(
   'orders/complete',
   async (orderId: number, { dispatch, rejectWithValue }) => {
     try {
-      const response = await api.put(`/orders/${orderId}/complete/`);
-      if (response.data?.status === 'success') {
-        dispatch(showNotification({ type: 'success', message: 'Заявка завершена' }));
-        return response.data.data;
-      }
-      return rejectWithValue(response.data.message || 'Ошибка');
+      const responsePayload = readPayload(await OrdersService.apiOrdersCompleteUpdate({ orderId }));
+      dispatch(updateOrder(responsePayload));
+      dispatch(showNotification({ type: 'success', message: 'Заявка завершена' }));
+      return responsePayload;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Ошибка сети');
+      return rejectWithValue(getErrorMessage(err, 'Ошибка завершения'));
     }
   }
 );
@@ -198,14 +165,12 @@ export const rejectOrderThunk = createAsyncThunk(
   'orders/reject',
   async (orderId: number, { dispatch, rejectWithValue }) => {
     try {
-      const response = await api.put(`/orders/${orderId}/reject/`);
-      if (response.data?.status === 'success') {
-        dispatch(showNotification({ type: 'success', message: 'Заявка отклонена' }));
-        return response.data.data;
-      }
-      return rejectWithValue(response.data.message || 'Ошибка');
+      const responsePayload = readPayload(await OrdersService.apiOrdersRejectUpdate({ orderId }));
+      dispatch(updateOrder(responsePayload));
+      dispatch(showNotification({ type: 'success', message: 'Заявка отклонена' }));
+      return responsePayload;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Ошибка сети');
+      return rejectWithValue(getErrorMessage(err, 'Ошибка отклонения'));
     }
   }
 );
@@ -214,14 +179,11 @@ export const deleteOrderThunk = createAsyncThunk(
   'orders/delete',
   async (orderId: number, { dispatch, rejectWithValue }) => {
     try {
-      const response = await api.delete(`/orders/${orderId}/delete/`);
-      if (response.data?.status === 'success') {
-        dispatch(showNotification({ type: 'success', message: 'Заявка удалена' }));
-        return true;
-      }
-      return rejectWithValue(response.data.message || 'Ошибка');
+      await OrdersService.apiOrdersDeleteDestroy({ orderId });
+      dispatch(showNotification({ type: 'success', message: 'Заявка удалена' }));
+      return true;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || 'Ошибка сети');
+      return rejectWithValue(getErrorMessage(err, 'Ошибка удаления'));
     }
   }
 );

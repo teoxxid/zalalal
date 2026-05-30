@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState, AppDispatch } from '../store';
 import { showNotification } from '../store/slices/uiSlice';
 import { addToCartThunk, fetchCartIconThunk } from '../store/thunks/orderThunks';
+import { api } from '../services/api';
 
 interface Service {
   id: number;
@@ -34,18 +35,18 @@ const MOCK_SERVICE: Service = {
 
 const ServiceDetail: React.FC = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
+  const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
   const [addingToCart, setAddingToCart] = useState(false);
   const [hasVideoError, setHasVideoError] = useState(false);
-  const [relatedServices, setRelatedServices] = useState<Service[]>([]);
   
   const user = useSelector((state: RootState) => state.auth.user);
   const isGlobalLoading = useSelector((state: RootState) => state.ui.loading);
   
-  const isMockMode = import.meta.env.MODE === 'mock' || !import.meta.env.VITE_API_URL;
+  const isMockMode = import.meta.env.MODE === 'mock';
 
   useEffect(() => {
     if (!serviceId) return;
@@ -58,9 +59,7 @@ const ServiceDetail: React.FC = () => {
     
     const fetchService = async () => {
       try {
-        const res = await fetch(`/api/services/${serviceId}/`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+        const { data: json } = await api.get(`/services/${serviceId}/`);
         const serviceData = json.data || json;
         setService(serviceData);
       } catch (err) {
@@ -92,6 +91,7 @@ const ServiceDetail: React.FC = () => {
         type: 'info', 
         message: 'Войдите, чтобы добавить товар в заказ' 
       }));
+      navigate('/login/', { state: { from: `/service/${serviceId}/` } });
       return;
     }
     

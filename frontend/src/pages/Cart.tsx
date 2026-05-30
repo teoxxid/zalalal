@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import type { RootState, AppDispatch } from '../store';
-import { clearCart, removeItem, updateQuantity } from '../store/slices/cartSlice';
+import { clearCart } from '../store/slices/cartSlice';
 import { showNotification } from '../store/slices/uiSlice';
-import { submitOrderThunk } from '../store/thunks/orderThunks';
+import { submitOrderThunk, updateCartItemThunk, removeFromCartThunk } from '../store/thunks/orderThunks';
 
 const Cart: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -15,22 +15,21 @@ const Cart: React.FC = () => {
 
   const handleDecrement = (serviceId: number) => {
     const item = items.find(i => i.serviceId === serviceId);
-    if (item && item.quantity > 1) {
-      dispatch(updateQuantity({ serviceId, quantity: item.quantity - 1 }));
+    if (item && item.quantity > 1 && orderId) {
+      dispatch(updateCartItemThunk({ orderId, serviceId, quantity: item.quantity - 1 }));
     }
   };
 
   const handleIncrement = (serviceId: number) => {
     const item = items.find(i => i.serviceId === serviceId);
-    if (item) {
-      dispatch(updateQuantity({ serviceId, quantity: item.quantity + 1 }));
+    if (item && orderId) {
+      dispatch(updateCartItemThunk({ orderId, serviceId, quantity: item.quantity + 1 }));
     }
   };
 
   const handleRemove = (serviceId: number, itemName: string) => {
-    if (window.confirm(`Удалить "${itemName}" из корзины?`)) {
-      dispatch(removeItem(serviceId));
-      dispatch(showNotification({ type: 'success', message: 'Товар удалён из корзины' }));
+    if (orderId && window.confirm(`Удалить "${itemName}" из корзины?`)) {
+      dispatch(removeFromCartThunk({ orderId, serviceId }));
     }
   };
 

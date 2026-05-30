@@ -32,7 +32,6 @@ from .serializers import (
     ServiceSerializer,
     UserSerializer,
 )
-from .utils import get_moderator_user
 
 logger = logging.getLogger(__name__)
 cache_logger = logging.getLogger("cache")
@@ -545,17 +544,33 @@ def api_service_create(request):
 @permission_classes([IsUserOrAdmin])
 def api_cart_icon(request):
     if not request.user.is_authenticated:
-        return Response({"status": "success", "data": {"order_id": None, "items_count": 0}})
+        return Response({"status": "success", "data": {"order_id": None, "items_count": 0, "items": []}})
     
     try:
-        draft_order = Order.objects.get(user=request.user, status="draft")
-        items_count = OrderItem.objects.filter(order=draft_order).count()
+        draft_order = Order.objects.prefetch_related("items__service").get(
+            user=request.user,
+            status="draft",
+        )
+        items = OrderItem.objects.filter(order=draft_order).select_related("service")
         return Response({
             "status": "success",
-            "data": {"order_id": draft_order.id, "items_count": items_count}
+            "data": {
+                "order_id": draft_order.id,
+                "items_count": items.count(),
+                "items": [
+                    {
+                        "serviceId": item.service_id,
+                        "name": item.service.name,
+                        "price": item.price_at_time,
+                        "quantity": item.quantity,
+                        "image_url": _get_service_image_url(item.service.image_key),
+                    }
+                    for item in items
+                ],
+            },
         })
     except Order.DoesNotExist:
-        return Response({"status": "success", "data": {"order_id": None, "items_count": 0}})
+        return Response({"status": "success", "data": {"order_id": None, "items_count": 0, "items": []}})
 
 
 @extend_schema(
@@ -620,18 +635,9 @@ def api_order_detail(request, order_id: int):
                 status=status.HTTP_403_FORBIDDEN,
             )
         
-        order_data = OrderSerializer(order).data
-        order_data["items"] = [
-            {
-                "id": i.id,
-                "service": i.service.id,
-                "service_name": i.service.name,
-                "service_price": i.service.price,
-                "quantity": i.quantity,
-                "price_at_time": i.price_at_time,
-            }
-            for i in order.items.select_related("service")
-        ]
+        order_data = OrderSerializer(
+            Order.objects.prefetch_related("items__service").get(id=order_id)
+        ).data
         return Response({"status": "success", "data": order_data})
         
     except Order.DoesNotExist:
@@ -823,7 +829,7 @@ def api_order_complete(request, order_id: int):
         
         order.status = "completed"
         order.completed_at = timezone.now()
-        order.moderator = get_moderator_user()
+        order.moderator = request.user
         
         items = OrderItem.objects.filter(order=order).select_related("service")
         order.total_items = sum(item.quantity for item in items)
@@ -883,7 +889,7 @@ def api_order_reject(request, order_id: int):
         
         order.status = "rejected"
         order.completed_at = timezone.now()
-        order.moderator = get_moderator_user()
+        order.moderator = request.user
         order.save()
         
         auth_logger.info(
@@ -1070,8 +1076,13 @@ def api_order_item_update(request, order_id: int, service_id: int):
             )
         
         order_item = get_object_or_404(OrderItem, order=order, service=service)
-        order_item.quantity = quantity
+        order_item.quantity = max(1, int(quantity))
         order_item.save()
+        order.total_amount = sum(
+            item.quantity * item.price_at_time
+            for item in OrderItem.objects.filter(order=order)
+        )
+        order.save(update_fields=["total_amount"])
         
         return Response({
             "status": "success",
@@ -1121,6 +1132,11 @@ def api_order_item_delete(request, order_id: int, service_id: int):
         
         order_item = get_object_or_404(OrderItem, order=order, service=service)
         order_item.delete()
+        order.total_amount = sum(
+            item.quantity * item.price_at_time
+            for item in OrderItem.objects.filter(order=order)
+        )
+        order.save(update_fields=["total_amount"])
         
         auth_logger.info(
             f"Order item deleted | user={request.user.username} | order_id={order_id} | "
@@ -1267,6 +1283,64 @@ def api_auth_me(request):
             "username": request.user.username,
             "email": request.user.email,
             "role": request.user.role,
+        },
+    })
+
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Список пользователей (модератор)",
+    responses={200: {"description": "Список пользователей"}},
+)
+@api_view(["GET"])
+@permission_classes([IsAdminOnly])
+def api_user_list(request):
+    users = User.objects.order_by("id")
+    return Response({
+        "status": "success",
+        "data": [
+            {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+            }
+            for user in users
+        ],
+    })
+
+
+@extend_schema(
+    tags=["Auth"],
+    summary="Изменить роль пользователя (модератор)",
+    request={
+        "application/json": {
+            "type": "object",
+            "properties": {"role": {"type": "string", "enum": ["USER", "ADMIN"]}},
+            "required": ["role"],
+        }
+    },
+    responses={200: {"description": "Роль обновлена"}, 400: {"description": "Ошибка"}},
+)
+@api_view(["PATCH"])
+@permission_classes([IsAdminOnly])
+def api_user_detail(request, user_id: int):
+    user = get_object_or_404(User, id=user_id)
+    role = request.data.get("role")
+    if role not in {"USER", "ADMIN"}:
+        return Response(
+            {"status": "error", "message": "Недопустимая роль"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    user.role = role
+    user.save(update_fields=["role"])
+    return Response({
+        "status": "success",
+        "data": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.role,
         },
     })
 

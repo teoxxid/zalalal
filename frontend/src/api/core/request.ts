@@ -154,8 +154,16 @@ export const getHeaders = async (config: OpenAPIConfig, options: ApiRequestOptio
 
     const formHeaders = typeof formData?.getHeaders === 'function' && formData?.getHeaders() || {}
 
+    const csrfToken = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='))
+        ?.split('=')[1];
+
     const headers = Object.entries({
         Accept: 'application/json',
+        ...(csrfToken && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method) ? {
+            'X-CSRFToken': decodeURIComponent(csrfToken),
+        } : {}),
         ...additionalHeaders,
         ...options.headers,
         ...formHeaders,

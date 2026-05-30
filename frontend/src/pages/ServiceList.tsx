@@ -6,6 +6,7 @@ import { addToCartThunk } from '../store/thunks/orderThunks';
 import { showNotification } from '../store/slices/uiSlice';
 import { setFilters, clearFilters } from '../store/slices/filterSlice';
 import Loader from '../components/Loader';
+import { api } from '../services/api';
 
 export interface Service {
   id: number;
@@ -134,7 +135,7 @@ const ServiceList: React.FC = () => {
   const [localPriceFrom, setLocalPriceFrom] = useState(filters.priceFrom?.toString() || '');
   const [localPriceTo, setLocalPriceTo] = useState(filters.priceTo?.toString() || '');
 
-  const isMockMode = import.meta.env.MODE === 'mock' || !import.meta.env.VITE_API_URL;
+  const isMockMode = import.meta.env.MODE === 'mock';
   const [apiServices, setApiServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(!isMockMode);
 
@@ -143,9 +144,7 @@ const ServiceList: React.FC = () => {
 
     const fetchServices = async () => {
       try {
-        const res = await fetch('/api/services/');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
+        const { data: json } = await api.get('/services/');
         const data = json.data || json.results || json;
         setApiServices(Array.isArray(data) ? data : []);
       } catch (err) {

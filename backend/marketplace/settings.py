@@ -14,6 +14,9 @@ SECRET_KEY = os.getenv(
 
 DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
 RUNNING_LOCALLY = "runserver" in sys.argv or os.getenv("RUN_MODE") == "local"
+SESSION_COOKIE_SECURE_DEFAULT = "False" if DEBUG else "True"
+CSRF_COOKIE_SECURE_DEFAULT = "False" if DEBUG else "True"
+COOKIE_SAMESITE_DEFAULT = "Lax" if DEBUG else "None"
 
 # Redis configuration
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost" if RUNNING_LOCALLY else "redis")
@@ -62,7 +65,13 @@ BACKEND_ORIGINS = [
 ]
 
 CORS_ALLOWED_ORIGINS = FRONTEND_ORIGINS + BACKEND_ORIGINS
-CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://.*\.github\.io$"]
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https?://localhost:\d+$",
+    r"^https?://127\.0\.0\.1:\d+$",
+    r"^https?://192\.168\.\d+\.\d+:\d+$",
+    r"^https?://172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+:\d+$",
+    r"^https://.*\.github\.io$",
+]
 CSRF_TRUSTED_ORIGINS = FRONTEND_ORIGINS + BACKEND_ORIGINS + ["https://*.github.io"]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -183,7 +192,10 @@ CACHES = {
 }
 
 # Sessions
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_ENGINE = os.getenv(
+    "DJANGO_SESSION_ENGINE",
+    "django.contrib.sessions.backends.db" if DEBUG or RUNNING_LOCALLY else "django.contrib.sessions.backends.cache",
+)
 SESSION_CACHE_ALIAS = "default"
 SESSION_COOKIE_AGE = 1209600  # 2 weeks
 SESSION_COOKIE_NAME = "voltmarket_sessionid"
@@ -196,10 +208,10 @@ CSRF_COOKIE_HTTPONLY = False
 CSRF_USE_SESSIONS = False
 
 # Security cookies (for HTTPS)
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_SAMESITE = "None"
-CSRF_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", SESSION_COOKIE_SECURE_DEFAULT) == "True"
+CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", CSRF_COOKIE_SECURE_DEFAULT) == "True"
+SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", COOKIE_SAMESITE_DEFAULT)
+CSRF_COOKIE_SAMESITE = os.getenv("CSRF_COOKIE_SAMESITE", COOKIE_SAMESITE_DEFAULT)
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # drf-spectacular (OpenAPI/Swagger)

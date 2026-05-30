@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { showNotification } from '../store/slices/uiSlice';
 import type { RootState } from '../store';
 import { useSelector } from 'react-redux';
@@ -18,7 +18,6 @@ interface UserPageProps {
 
 const UserPage: React.FC<UserPageProps> = ({ user, onLogout }) => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ username: user?.username || '', email: user?.email || '' });
@@ -28,7 +27,7 @@ const UserPage: React.FC<UserPageProps> = ({ user, onLogout }) => {
   
   const ordersCount = orders.length;
   const cartCount = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
-  const totalSpent = orders.filter(order => order.status === 'completed').reduce((sum, order) => sum + (order.total_amount || 0), 0);
+  const totalSpent = orders.filter(order => order.status === 'completed').reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
   
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');

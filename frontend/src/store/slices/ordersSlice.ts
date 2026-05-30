@@ -4,12 +4,13 @@ import { fetchOrdersThunk } from '../thunks/orderThunks'; // 🔹 Импорт t
 
 export interface Order {
   id: number;
-  user: string;
+  user: string | { id: number; username: string; email?: string };
   status: 'draft' | 'submitted' | 'completed' | 'rejected' | 'deleted';
   created_at: string;
   submitted_at?: string;
   completed_at?: string;
-  total_amount: number;
+  total_amount: number | string;
+  total_items?: number;
   items_count?: number;
   items?: any[];
 }
@@ -81,9 +82,19 @@ const ordersSlice = createSlice({
   },
   // 🔹 Автоматическая обработка результата fetchOrdersThunk
   extraReducers: (builder) => {
-    builder.addCase(fetchOrdersThunk.fulfilled, (state, action: PayloadAction<any[]>) => {
-      state.list = action.payload;
-    });
+    builder
+      .addCase(fetchOrdersThunk.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchOrdersThunk.fulfilled, (state, action: PayloadAction<any[]>) => {
+        state.isLoading = false;
+        state.list = action.payload;
+      })
+      .addCase(fetchOrdersThunk.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = typeof action.payload === 'string' ? action.payload : 'Ошибка загрузки заявок';
+      });
   },
 });
 

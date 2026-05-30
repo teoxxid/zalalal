@@ -12,6 +12,7 @@ import ServiceList from './pages/ServiceList';
 import ServiceDetail from './pages/ServiceDetail';
 import Cart from './pages/Cart';
 import OrderList from './pages/OrderList';
+import OrderDetail from './pages/OrderDetail';
 
 import Navbar from './components/Navbar';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -21,10 +22,16 @@ import { logoutThunk, setAuthFromStorage } from './store/thunks/authThunks';
 import { fetchCartIconThunk } from './store/thunks/orderThunks';
 import { clearNotification } from './store/slices/uiSlice';
 import { clearFilters } from './store/slices/filterSlice';
+import { clearCart } from './store/slices/cartSlice';
 
 const ServiceRedirect: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   return <Navigate to={`/service/${id}/`} replace />;
+};
+
+const OrderRedirect: React.FC = () => {
+  const { orderId } = useParams<{ orderId: string }>();
+  return <Navigate to={`/order/${orderId}/`} replace />;
 };
 
 const NotFoundPage: React.FC = () => (
@@ -70,6 +77,7 @@ function App() {
 
   const handleLogout = async () => {
     await dispatch(logoutThunk());
+    dispatch(clearCart());
     dispatch(clearNotification());
     dispatch(clearFilters());
   };
@@ -147,8 +155,21 @@ function App() {
                 isAuthChecked={isAuthChecked} 
                 isLoading={authLoading} 
                 adminOnly
+                user={user}
               >
                 <AdminPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/order/:orderId/"
+            element={
+              <ProtectedRoute
+                isAuthenticated={isAuthenticated}
+                isAuthChecked={isAuthChecked}
+                isLoading={authLoading}
+              >
+                <OrderDetail />
               </ProtectedRoute>
             }
           />
@@ -158,6 +179,7 @@ function App() {
           <Route path="/pages/service/:id/" element={<ServiceRedirect />} />
           <Route path="/pages/cart/" element={<Navigate to="/cart/" replace />} />
           <Route path="/pages/orders/" element={<Navigate to="/orders/" replace />} />
+          <Route path="/pages/order/:orderId/" element={<OrderRedirect />} />
           <Route path="/pages/user-page/" element={<Navigate to="/user-page/" replace />} />
           <Route path="/pages/admin-page/" element={<Navigate to="/admin-page/" replace />} />
 

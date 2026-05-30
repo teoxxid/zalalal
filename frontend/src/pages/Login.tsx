@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { loginThunk } from '../store/thunks/authThunks';
 import { showNotification } from '../store/slices/uiSlice';
 import type { AppDispatch } from '../store';
@@ -8,6 +9,7 @@ import type { AppDispatch } from '../store';
 const Login: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
@@ -19,11 +21,11 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      await dispatch(loginThunk(formData));
-      // Редирект на главную после успешного входа
-      navigate('/');
-    } catch (error) {
-      dispatch(showNotification({ type: 'error', message: 'Ошибка входа' }));
+      await dispatch(loginThunk(formData)).unwrap();
+      const from = (location.state as { from?: string } | null)?.from || '/';
+      navigate(from, { replace: true });
+    } catch (error: any) {
+      dispatch(showNotification({ type: 'error', message: error || 'Ошибка входа' }));
     } finally {
       setIsLoading(false);
     }

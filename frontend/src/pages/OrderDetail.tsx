@@ -6,6 +6,10 @@ import {
   completeOrderThunk,
   rejectOrderThunk,
   deleteOrderThunk,
+  fetchOrderThunk,
+  removeFromCartThunk,
+  updateCartItemThunk,
+  submitOrderThunk,
 } from '../store/thunks/orderThunks';
 import { showNotification } from '../store/slices/uiSlice';
 import type { Order } from '../store/slices/ordersSlice';
@@ -15,13 +19,20 @@ interface OrderItem {
   id: number;
   service_id: number;
   quantity: number;
-  price_at_time: number;
+  price_at_time: number | string;
   service?: {
+    id?: number;
     name: string;
     image_url?: string;
     category?: string;
   };
+  service_name?: string;
+  service_price?: number | string;
 }
+
+const getServiceId = (item: OrderItem) => Number(item.service_id ?? item.service?.id);
+const getItemName = (item: OrderItem) => item.service?.name || item.service_name || 'Товар';
+const getItemPrice = (item: OrderItem) => Number(item.price_at_time || item.service_price || 0);
 
 const OrderDetail: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -35,34 +46,68 @@ const OrderDetail: React.FC = () => {
 
   const user = useSelector((state: RootState) => state.auth.user);
 
-  useEffect(() => {
+  const loadOrder = async () => {
     if (!orderId) return;
-    const fetchOrder = async () => {
-      try {
-        const res = await fetch(`/api/orders/${orderId}/`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        setOrder(json.data);
-        setOrderItems(json.data.items || []);
-      } catch (err) {
-        console.error('Failed to fetch order:', err);
-        dispatch(showNotification({ type: 'error', message: 'Ошибка загрузки заявки' }));
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOrder();
-  }, [orderId, dispatch]);
+    setLoading(true);
+    const result = await dispatch(fetchOrderThunk(Number(orderId)));
+    if (fetchOrderThunk.fulfilled.match(result)) {
+      setOrder(result.payload);
+      setOrderItems((result.payload.items || []) as OrderItem[]);
+    } else {
+      dispatch(showNotification({ type: 'error', message: result.payload as string || 'Ошибка загрузки заявки' }));
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadOrder();
+  }, [orderId]);
+
+  const handleQuantityChange = async (item: OrderItem, nextQuantity: number) => {
+    if (!orderId || nextQuantity < 1) return;
+    const serviceId = getServiceId(item);
+    const result = await dispatch(updateCartItemThunk({
+      orderId: Number(orderId),
+      serviceId,
+      quantity: nextQuantity,
+    }));
+    if (updateCartItemThunk.fulfilled.match(result)) {
+      setOrderItems((prev) => prev.map((current) => (
+        current.id === item.id ? { ...current, quantity: nextQuantity } : current
+      )));
+    }
+  };
+
+  const handleRemove = async (item: OrderItem) => {
+    if (!orderId || !window.confirm(`Удалить "${getItemName(item)}" из заявки?`)) return;
+    const result = await dispatch(removeFromCartThunk({
+      orderId: Number(orderId),
+      serviceId: getServiceId(item),
+    }));
+    if (removeFromCartThunk.fulfilled.match(result)) {
+      setOrderItems((prev) => prev.filter((current) => current.id !== item.id));
+    }
+  };
+
+  const handleSubmitDraft = async () => {
+    if (!orderId) return;
+    setActionLoading(true);
+    const result = await dispatch(submitOrderThunk(Number(orderId)));
+    if (submitOrderThunk.fulfilled.match(result)) {
+      setOrder(result.payload);
+      dispatch(showNotification({ type: 'success', message: 'Заявка сформирована' }));
+    }
+    setActionLoading(false);
+  };
 
   const handleComplete = async () => {
     if (!orderId) return;
     setActionLoading(true);
-    const result = await dispatch(completeOrderThunk(parseInt(orderId)));
+    const result = await dispatch(completeOrderThunk(Number(orderId)));
     if (completeOrderThunk.fulfilled.match(result)) {
-      dispatch(showNotification({ type: 'success', message: 'Заявка завершена' }));
-      setOrder((prev) => prev ? { ...prev, status: 'completed' } : null);
+      setOrder(result.payload);
     } else {
-      dispatch(showNotification({ type: 'error', message: 'Ошибка завершения' }));
+      dispatch(showNotification({ type: 'error', message: result.payload as string || 'Ошибка завершения' }));
     }
     setActionLoading(false);
   };
@@ -70,12 +115,11 @@ const OrderDetail: React.FC = () => {
   const handleReject = async () => {
     if (!orderId) return;
     setActionLoading(true);
-    const result = await dispatch(rejectOrderThunk(parseInt(orderId)));
+    const result = await dispatch(rejectOrderThunk(Number(orderId)));
     if (rejectOrderThunk.fulfilled.match(result)) {
-      dispatch(showNotification({ type: 'success', message: 'Заявка отклонена' }));
-      setOrder((prev) => prev ? { ...prev, status: 'rejected' } : null);
+      setOrder(result.payload);
     } else {
-      dispatch(showNotification({ type: 'error', message: 'Ошибка отклонения' }));
+      dispatch(showNotification({ type: 'error', message: result.payload as string || 'Ошибка отклонения' }));
     }
     setActionLoading(false);
   };
@@ -84,12 +128,9 @@ const OrderDetail: React.FC = () => {
     if (!window.confirm('Удалить заявку? Это действие необратимо.')) return;
     if (!orderId) return;
     setActionLoading(true);
-    const result = await dispatch(deleteOrderThunk(parseInt(orderId)));
+    const result = await dispatch(deleteOrderThunk(Number(orderId)));
     if (deleteOrderThunk.fulfilled.match(result)) {
-      dispatch(showNotification({ type: 'success', message: 'Заявка удалена' }));
       navigate('/orders/');
-    } else {
-      dispatch(showNotification({ type: 'error', message: 'Ошибка удаления' }));
     }
     setActionLoading(false);
   };
@@ -97,7 +138,7 @@ const OrderDetail: React.FC = () => {
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
       draft: 'Черновик',
-      submitted: 'Отправлена',
+      submitted: 'Сформирована',
       completed: 'Завершена',
       rejected: 'Отклонена',
       deleted: 'Удалена',
@@ -106,6 +147,7 @@ const OrderDetail: React.FC = () => {
   };
 
   if (loading) return <Loader size="large" text="Загрузка заявки..." />;
+
   if (!order) {
     return (
       <div className="container">
@@ -117,6 +159,9 @@ const OrderDetail: React.FC = () => {
       </div>
     );
   }
+
+  const canEditDraft = order.status === 'draft' && user?.role !== 'ADMIN';
+  const canModerate = order.status === 'submitted' && user?.role === 'ADMIN';
 
   return (
     <div className="order-detail">
@@ -130,7 +175,7 @@ const OrderDetail: React.FC = () => {
         <p><strong>Дата создания:</strong> {new Date(order.created_at).toLocaleString('ru-RU')}</p>
         {order.submitted_at && <p><strong>Дата оформления:</strong> {new Date(order.submitted_at).toLocaleString('ru-RU')}</p>}
         {order.completed_at && <p><strong>Дата завершения:</strong> {new Date(order.completed_at).toLocaleString('ru-RU')}</p>}
-        <p><strong>Общая сумма:</strong> <strong className="order-total">{order.total_amount?.toLocaleString('ru-RU')} ₽</strong></p>
+        <p><strong>Общая сумма:</strong> <strong className="order-total">{Number(order.total_amount || 0).toLocaleString('ru-RU')} ₽</strong></p>
       </div>
 
       <div className="order-items">
@@ -138,29 +183,60 @@ const OrderDetail: React.FC = () => {
         {orderItems.length > 0 ? (
           orderItems.map((item) => (
             <div key={item.id} className="order-item">
-              <Link to={`/service/${item.service_id}/`} className="order-item-link">
+              <Link to={`/service/${getServiceId(item)}/`} className="order-item-link">
                 <div className="order-item-image-wrapper">
                   <img
                     src={item.service?.image_url || '/placeholder.svg'}
-                    alt={item.service?.name || 'Товар'}
+                    alt={getItemName(item)}
                     className="order-item-image"
                     onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
                   />
                 </div>
                 <div className="order-item-info">
                   <div className="item-details">
-                    <h3>{item.service?.name || 'Товар'}</h3>
+                    <h3>{getItemName(item)}</h3>
                     <p>{item.service?.category || ''}</p>
                   </div>
                   <div className="item-meta">
-                    <p className="item-price">{item.price_at_time?.toLocaleString('ru-RU')} ₽</p>
-                    <div className="item-quantity">
-                      <span className="quantity-label">Кол-во:</span>
-                      <span className="quantity-value">{item.quantity}</span>
-                    </div>
+                    <p className="item-price">{getItemPrice(item).toLocaleString('ru-RU')} ₽</p>
+                    {canEditDraft ? (
+                      <div className="quantity-control-wrapper" onClick={(e) => e.preventDefault()}>
+                        <button
+                          type="button"
+                          className="quantity-btn-small"
+                          disabled={item.quantity <= 1}
+                          onClick={() => handleQuantityChange(item, item.quantity - 1)}
+                        >
+                          −
+                        </button>
+                        <span className="quantity-value-small">{item.quantity}</span>
+                        <button
+                          type="button"
+                          className="quantity-btn-small"
+                          onClick={() => handleQuantityChange(item, item.quantity + 1)}
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="item-quantity">
+                        <span className="quantity-label">Кол-во:</span>
+                        <span className="quantity-value">{item.quantity}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Link>
+              {canEditDraft && (
+                <button
+                  type="button"
+                  className="remove-item-btn"
+                  onClick={() => handleRemove(item)}
+                  title="Удалить товар"
+                >
+                  Удалить
+                </button>
+              )}
             </div>
           ))
         ) : (
@@ -171,21 +247,18 @@ const OrderDetail: React.FC = () => {
         )}
       </div>
 
-      {order.status === 'draft' && orderItems.length > 0 && (
+      {canEditDraft && orderItems.length > 0 && (
         <div className="order-actions">
-          <button onClick={handleComplete} disabled={actionLoading} className="complete-order-btn btn btn-success">
-            {actionLoading ? 'Завершение...' : 'Завершить заявку'}
-          </button>
-          <button onClick={handleReject} disabled={actionLoading} className="reject-order-btn btn btn-danger">
-            {actionLoading ? 'Отклонение...' : 'Отклонить'}
+          <button onClick={handleSubmitDraft} disabled={actionLoading} className="complete-order-btn btn btn-success">
+            {actionLoading ? 'Формирование...' : 'Сформировать заявку'}
           </button>
           <button onClick={handleDelete} disabled={actionLoading} className="delete-order-btn btn btn-secondary">
-            {actionLoading ? 'Удаление...' : 'Удалить'}
+            {actionLoading ? 'Удаление...' : 'Удалить черновик'}
           </button>
         </div>
       )}
 
-      {order.status === 'submitted' && user?.role === 'ADMIN' && (
+      {canModerate && (
         <div className="order-actions">
           <button onClick={handleComplete} disabled={actionLoading} className="complete-order-btn btn btn-success">
             {actionLoading ? 'Завершение...' : 'Завершить'}

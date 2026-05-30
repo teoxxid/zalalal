@@ -38,7 +38,10 @@ const cartSlice = createSlice({
     addItem: (state, action: PayloadAction<CartItem>) => {
       const existing = state.items.find(i => i.serviceId === action.payload.serviceId);
       if (existing) {
-        existing.quantity += action.payload.quantity;
+        existing.quantity = action.payload.quantity;
+        existing.name = action.payload.name;
+        existing.price = action.payload.price;
+        existing.image_url = action.payload.image_url;
       } else {
         state.items.push(action.payload);
       }
