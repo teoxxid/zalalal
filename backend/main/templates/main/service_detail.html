@@ -1,43 +1,81 @@
-{% extends "main/base.html" %}
+{% extends 'main/base.html' %}
 
-{% block title %}{{ data.service.name }}{% endblock %}
+{% block title %}{{ service.name }} — VoltMarket{% endblock %}
 
 {% block content %}
-<div class="product-detail">
-    <div class="detail-header">
-        <a href="{% url 'service_list' %}" class="back-button">← Назад</a>
-    </div>
+<div class="product-detail" style="max-width:1200px;margin:0 auto;padding:32px;">
+    <nav aria-label="breadcrumb" style="margin-bottom:32px;">
+        <ol class="breadcrumb" style="display:flex;gap:8px;list-style:none;padding:0;margin:0;">
+            <li><a href="/pages/" style="color:#005bff;text-decoration:none;">Главная</a></li>
+            <li style="color:#666;">/</li>
+            <li><a href="/pages/catalog/" style="color:#005bff;text-decoration:none;">Каталог</a></li>
+            <li style="color:#666;">/</li>
+            <li style="color:#333;">{{ service.name }}</li>
+        </ol>
+    </nav>
 
-    <div class="detail-content">
-        <div class="detail-media">
-            {% if data.service.video_url %}
-            <video controls autoplay muted loop class="detail-video">
-                <source src="{{ data.service.video_url }}" type="video/mp4">
+    <div class="detail-content" style="display:grid;grid-template-columns:1fr 1fr;gap:40px;background:white;border-radius:24px;padding:32px;box-shadow:0 2px 8px rgba(0,0,0,0.08);border:1px solid #e0e0e0;">
+        <div class="detail-media" style="display:flex;flex-direction:column;gap:20px;">
+            {% if service.video_url %}
+            <video autoplay muted loop playsinline controls class="detail-video" style="width:100%;border-radius:16px;background:#000;">
+                <source src="{{ service.video_url }}" type="video/mp4">
                 Ваш браузер не поддерживает видео.
             </video>
             {% else %}
-            <img src="{{ data.service.image_url }}" alt="{{ data.service.name }}" class="detail-image">
+            <img src="{{ service.image_url }}" alt="{{ service.name }}" class="detail-image"
+                style="width:100%;max-height:400px;object-fit:contain;background:white;border-radius:16px;padding:20px;border:1px solid #f0f0f0;"
+                onerror="this.src='https://via.placeholder.com/600x400?text=No+Image'">
             {% endif %}
         </div>
 
         <div class="detail-info">
-            <h1>{{ data.service.name }}</h1>
-            <p class="detail-price">{{ data.service.price }} ₽</p>
-            <p class="detail-category">Категория: {{ data.service.category }}</p>
-            <p class="detail-brand">Бренд: {{ data.service.brand }}</p>
-            <p class="detail-rating">Рейтинг: ★ {{ data.service.rating }}</p>
-
-            <div class="detail-description">
-                <h3>Описание</h3>
-                <p>{{ data.service.description }}</p>
+            <h1 style="font-size:28px;margin-bottom:16px;">{{ service.name }}</h1>
+            
+            <p class="detail-price" style="font-size:32px;font-weight:600;color:#005bff;margin-bottom:16px;">
+                {{ service.price }} ₽
+            </p>
+            
+            <dl style="margin-bottom:24px;">
+                {% if service.category %}
+                <dt style="font-weight:600;color:#333;margin-bottom:8px;">Категория</dt>
+                <dd style="color:#666;margin-bottom:16px;">{{ service.category }}</dd>
+                {% endif %}
+                
+                {% if service.brand %}
+                <dt style="font-weight:600;color:#333;margin-bottom:8px;">Бренд</dt>
+                <dd style="color:#666;margin-bottom:16px;">{{ service.brand }}</dd>
+                {% endif %}
+                
+                {% if service.rating %}
+                <dt style="font-weight:600;color:#333;margin-bottom:8px;">Рейтинг</dt>
+                <dd style="color:#666;margin-bottom:16px;">★ {{ service.rating }}</dd>
+                {% endif %}
+                
+                {% if service.weight %}
+                <dt style="font-weight:600;color:#333;margin-bottom:8px;">Вес</dt>
+                <dd style="color:#666;margin-bottom:16px;">{{ service.weight }} кг</dd>
+                {% endif %}
+            </dl>
+            
+            <div class="detail-description" style="margin:24px 0;padding:20px;background:#f5f5f5;border-radius:12px;border:1px solid #e0e0e0;">
+                <h3 style="margin-bottom:12px;color:#333;">Описание</h3>
+                <p style="line-height:1.6;color:#666;">{{ service.description }}</p>
             </div>
-
-            <form method="POST" action="{% url 'add_to_order' data.service.id %}">
+            
+            {% if request.user.is_authenticated %}
+            <form method="POST" action="/add-to-order/{{ service.id }}/" style="margin-top:24px;">
                 {% csrf_token %}
-                <button type="submit" class="add-to-cart-btn">
+                <button type="submit" class="add-to-cart-btn" 
+                        style="padding:16px 32px;background:#005bff;color:white;border:none;border-radius:40px;font-size:18px;font-weight:600;cursor:pointer;transition:all 0.2s;width:100%;">
                     Добавить в заявку
                 </button>
             </form>
+            {% else %}
+            <a href="/login/" 
+               style="display:block;padding:16px 32px;background:#005bff;color:white;text-align:center;text-decoration:none;border-radius:40px;font-size:18px;font-weight:600;margin-top:24px;">
+                Войдите, чтобы добавить в заявку
+            </a>
+            {% endif %}
         </div>
     </div>
 </div>

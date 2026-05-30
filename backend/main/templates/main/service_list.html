@@ -1,36 +1,64 @@
-{% extends "main/base.html" %}
+{% extends 'main/base.html' %}
 
-{% block title %}Каталог товаров{% endblock %}
+{% block title %}Каталог — VoltMarket{% endblock %}
 
 {% block content %}
 <div class="container">
-    <div class="cart-preview">
-        <h3>Текущая заявка</h3>
-        {% if data.current_order %}
-        <p>ID: {{ data.current_order.id }}</p>
-        <p>Товаров: {{ data.cart_items_count }}</p>
-        <p>Статус: Черновик</p>
-        <p>Сумма: {{ data.current_order.total_amount }} ₽</p>
-        <a href="{% url 'order_detail' data.current_order.id %}" class="btn">Перейти в корзину</a>
-        {% else %}
-        <p>Нет активной заявки</p>
-        <p>Товаров: 0</p>
-        <p>Добавьте товар, чтобы создать заявку</p>
-        {% endif %}
+    <!-- Заголовок и поиск -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:32px;">
+        <h2 style="margin:0;font-size:32px;color:#333;">Каталог товаров</h2>
+        
+        <form method="GET" class="search-form" style="display:flex;gap:8px;">
+            <input type="text" name="search" class="search-input" 
+                   placeholder="Поиск по названию..." 
+                   value="{{ search_query|default:'' }}">
+            <button type="submit" class="search-button">🔍</button>
+        </form>
     </div>
 
+    <!-- Сетка товаров -->
+    {% if services %}
     <div class="products-grid">
-        {% for service in data.services %}
-        <a href="{% url 'service_detail' service.id %}" class="product-card-link">
+        {% for service in services %}
+        <a href="/pages/service/{{ service.id }}/" class="product-card-link">
             <div class="product-card">
-                <img src="{{ service.image_url }}" alt="{{ service.name }}" class="product-image">
+                <img src="{{ service.image_url }}" 
+                     alt="{{ service.name }}"
+                     class="product-image"
+                     onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+                
                 <h3 class="product-title">{{ service.name }}</h3>
-                <p class="product-price">{{ service.price }} ₽</p>
+                
+                {% if service.category %}
                 <p class="product-category">{{ service.category }}</p>
+                {% endif %}
+                
+                {% if service.rating %}
                 <p class="product-rating">★ {{ service.rating }}</p>
+                {% endif %}
+                
+                <p class="product-price">{{ service.price }} ₽</p>
             </div>
         </a>
         {% endfor %}
     </div>
+    
+    {% else %}
+    <!-- Нет товаров -->
+    <div class="empty-cart" style="text-align:center;padding:80px 20px;">
+        <p style="font-size:20px;color:#666;margin-bottom:20px;">
+            {% if search_query %}
+                По запросу "{{ search_query }}" ничего не найдено
+            {% else %}
+                Товары не найдены
+            {% endif %}
+        </p>
+        {% if search_query %}
+        <a href="/pages/catalog/" class="btn" style="display:inline-block;padding:12px 30px;background:#005bff;color:white;text-decoration:none;border-radius:24px;font-weight:600;">
+            Сбросить фильтры
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

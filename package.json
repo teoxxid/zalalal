@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@huggingface/transformers": "^4.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^1.1.0",
+    "rollup-plugin-visualizer": "^7.0.1",
+    "terser": "^5.48.0"
+  }
+}

@@ -1,80 +1,111 @@
-{% extends "main/base.html" %}
+{% extends 'main/base.html' %}
 
-{% block title %}Заявка {{ order.id }}{% endblock %}
+{% block title %}Заявка №{{ order.id }} — VoltMarket{% endblock %}
 
 {% block content %}
-<div class="order-detail">
-    <div class="order-header">
-        <a href="{% url 'index' %}" class="back-button">← На главную</a>
-        <h1>Заявка №{{ order.id }}</h1>
+<div class="order-detail" style="max-width:800px;margin:0 auto;padding:32px;">
+    <div class="order-header" style="margin-bottom:32px;">
+        <a href="/pages/orders/" style="color:#005bff;text-decoration:none;">← Назад к списку</a>
+        <h1 style="margin-top:16px;color:#333;font-size:28px;">Заявка №{{ order.id }}</h1>
     </div>
 
-    <div class="order-info">
-        <p><strong>Статус:</strong>
-            {% if order.status == 'draft' %}Черновик
-            {% elif order.status == 'deleted' %}Удалена
-            {% elif order.status == 'submitted' %}Сформирована
-            {% elif order.status == 'completed' %}Завершена
-            {% elif order.status == 'rejected' %}Отклонена
-            {% endif %}
+    <div class="order-info" style="background:white;border-radius:16px;padding:24px;margin-bottom:32px;box-shadow:0 2px 8px rgba(0,0,0,0.08);border:1px solid #e0e0e0;">
+        <p>
+            <strong>Статус:</strong> 
+            <span class="status-badge status-{{ order.status }}">
+                {% if order.status == 'draft' %}Черновик
+                {% elif order.status == 'submitted' %}Отправлена
+                {% elif order.status == 'completed' %}Завершена
+                {% elif order.status == 'rejected' %}Отклонена
+                {% elif order.status == 'deleted' %}Удалена
+                {% else %}{{ order.status }}{% endif %}
+            </span>
         </p>
-        <p><strong>Дата создания:</strong> {{ order.created_at|date:"d.m.Y H:i:s" }}</p>
-        <p><strong>Общая сумма:</strong> {{ order.total_amount }} ₽</p>
+        <p><strong>Дата создания:</strong> {{ order.created_at|date:"d.m.Y H:i" }}</p>
+        {% if order.submitted_at %}
+        <p><strong>Дата оформления:</strong> {{ order.submitted_at|date:"d.m.Y H:i" }}</p>
+        {% endif %}
+        {% if order.completed_at %}
+        <p><strong>Дата завершения:</strong> {{ order.completed_at|date:"d.m.Y H:i" }}</p>
+        {% endif %}
+        <p><strong>Общая сумма:</strong> <strong style="color:#005bff;font-size:20px;">{{ order.total_amount }} ₽</strong></p>
+    </div>
 
-        {% if order.status == 'completed' %}
-        <div class="order-results">
-            <h3>Результаты заказа:</h3>
-            <p><strong>Общее количество товаров:</strong> {{ order.total_items }} шт.</p>
-            <p><strong>Итоговый вес:</strong> {{ order.total_weight }} кг</p>
-        </div>
+    <div class="order-items" style="background:white;border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.08);border:1px solid #e0e0e0;margin-bottom:32px;">
+        <h2 style="margin-bottom:20px;color:#333;font-size:20px;border-bottom:2px solid #f0f0f0;padding-bottom:10px;">
+            Товары в заявке
+        </h2>
+
+        {% if order_items %}
+            {% for item in order_items %}
+            <div class="order-item" style="border-bottom:1px solid #e0e0e0;padding:16px 0;">
+                <a href="/pages/service/{{ item.service.id }}/" 
+                   class="order-item-link" 
+                   style="display:flex;gap:20px;text-decoration:none;color:inherit;align-items:center;">
+                    
+                    <div class="order-item-image-wrapper" 
+                         style="width:100px;height:100px;flex-shrink:0;background:white;border-radius:12px;border:1px solid #f0f0f0;display:flex;align-items:center;justify-content:center;padding:10px;">
+                        <img src="{{ item.service.image_url }}" 
+                             alt="{{ item.service.name }}"
+                             class="order-item-image"
+                             style="max-width:100%;max-height:100%;object-fit:contain;"
+                             onerror="this.src='https://via.placeholder.com/100x100?text=No+Image'">
+                    </div>
+                    
+                    <div class="order-item-info" style="flex:1;display:flex;align-items:center;justify-content:space-between;">
+                        <div class="item-details">
+                            <h3 style="font-size:18px;margin-bottom:8px;color:#333;">{{ item.service.name }}</h3>
+                            <p style="font-size:14px;color:#666;">{{ item.service.category }}</p>
+                        </div>
+                        
+                        <div style="text-align:right;">
+                            <p class="item-price" style="font-size:20px;font-weight:600;color:#005bff;margin-bottom:8px;">
+                                {{ item.price_at_time }} ₽
+                            </p>
+                            <div class="item-quantity" 
+                                 style="display:flex;align-items:center;gap:10px;background:#f2f4f7;padding:8px 16px;border-radius:30px;">
+                                <span class="quantity-label" style="font-size:14px;color:#666;">Кол-во:</span>
+                                <span class="quantity-value" 
+                                      style="font-size:18px;font-weight:600;color:#333;background:white;padding:2px 10px;border-radius:20px;min-width:30px;text-align:center;">
+                                    {{ item.quantity }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-cart" style="text-align:center;padding:48px 20px;">
+                <p style="font-size:18px;color:#666;margin-bottom:20px;">В заявке нет товаров</p>
+                <a href="/pages/catalog/" 
+                   class="btn" 
+                   style="display:inline-block;padding:12px 30px;background:#005bff;color:white;text-decoration:none;border-radius:24px;font-weight:600;">
+                    Перейти в каталог
+                </a>
+            </div>
         {% endif %}
     </div>
 
-    <div class="order-items">
-        <h2>Товары в заявке</h2>
-
-        {% for item in order_items %}
-        <div class="order-item">
-            <a href="{% url 'service_detail' item.service.id %}" class="order-item-link">
-                <div class="order-item-image-wrapper">
-                    <img src="{{ item.service.image_url }}" alt="{{ item.service.name }}" class="order-item-image">
-                </div>
-                <div class="order-item-info">
-                    <div class="item-details">
-                        <h3>{{ item.service.name }}</h3>
-                        <p class="item-price">{{ item.price_at_time }} ₽</p>
-                    </div>
-                    <div class="item-quantity">
-                        <span class="quantity-label">Количество:</span>
-                        <span class="quantity-value">{{ item.quantity }}</span>
-                    </div>
-                </div>
-            </a>
-        </div>
-        {% empty %}
-        <div class="empty-cart">
-            <p>В заявке нет товаров</p>
-            <a href="{% url 'service_list' %}" class="btn">Перейти в каталог</a>
-        </div>
-        {% endfor %}
+    {% if order.status == 'draft' and order_items %}
+    <div class="order-actions" style="display:flex;justify-content:flex-end;gap:10px;">
+        <form method="POST" action="/complete-order/{{ order.id }}/" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="complete-order-btn" 
+                    style="padding:14px 32px;background:#00aa70;color:white;border:none;border-radius:30px;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.3s;">
+                Завершить заявку
+            </button>
+        </form>
+        
+        <form method="POST" action="/delete-order/{{ order.id }}/" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="delete-order-btn" 
+                    style="padding:14px 32px;background:#dc3545;color:white;border:none;border-radius:30px;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.3s;"
+                    onclick="return confirm('Удалить заявку?')">
+                Удалить
+            </button>
+        </form>
     </div>
-
-    <div class="order-actions">
-        {% if order.status == 'draft' %}
-        <form method="POST" action="{% url 'complete_order' order.id %}" style="display: inline;">
-            {% csrf_token %}
-            <button type="submit" class="complete-order-btn">Оформить заказ</button>
-        </form>
-        <form method="POST" action="{% url 'delete_order' order.id %}" style="display: inline;">
-            {% csrf_token %}
-            <button type="submit" class="delete-order-btn" onclick="return confirm('Удалить заявку?')">Удалить заявку</button>
-        </form>
-        {% elif order.status == 'submitted' %}
-        <form method="POST" action="{% url 'complete_order' order.id %}" style="display: inline;">
-            {% csrf_token %}
-            <button type="submit" class="complete-order-btn">Завершить заказ и рассчитать</button>
-        </form>
-        {% endif %}
-    </div>
+    {% endif %}
 </div>
 {% endblock %}

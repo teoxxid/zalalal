@@ -1,0 +1,769 @@
+openapi: 3.0.3
+info:
+  title: VoltMarket API
+  version: 1.0.0
+  description: API for marketplace
+paths:
+  /api/login/:
+    post:
+      operationId: api_login_create
+      summary: Аутентификация пользователя
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+              required:
+              - username
+              - password
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Успех
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                description: Ошибка
+          description: ''
+  /api/logout/:
+    post:
+      operationId: api_logout_create
+      summary: Выход из системы
+      tags:
+      - Auth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Выход выполнен
+          description: ''
+  /api/order-items/{order_id}/{service_id}/delete/:
+    delete:
+      operationId: api_order_items_delete_destroy
+      summary: Удалить товар из заявки
+      parameters:
+      - in: path
+        name: order_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: service_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - OrderItems
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Удалён
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                description: Нет доступа
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                description: Не найден
+          description: ''
+  /api/order-items/{order_id}/{service_id}/update/:
+    put:
+      operationId: api_order_items_update_update
+      summary: Обновить товар в заявке
+      parameters:
+      - in: path
+        name: order_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: service_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - OrderItems
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity:
+                  type: integer
+              required:
+              - quantity
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Обновлено
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Ошибка
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                description: Нет доступа
+          description: ''
+  /api/order-items/add/:
+    post:
+      operationId: api_order_items_add_create
+      summary: Добавить товар в заявку
+      tags:
+      - OrderItems
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                service_id:
+                  type: integer
+                quantity:
+                  type: integer
+                  default: 1
+              required:
+              - service_id
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                description: Добавлен
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Ошибка
+          description: ''
+  /api/orders/:
+    get:
+      operationId: api_orders_retrieve
+      summary: Список заявок
+      parameters:
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: status
+        schema:
+          type: string
+      tags:
+      - Orders
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Список заявок
+          description: ''
+  /api/orders/{order_id}/:
+    get:
+      operationId: api_orders_retrieve_2
+      summary: Детали заявки
+      parameters:
+      - in: path
+        name: order_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Orders
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Детали заявки
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                description: Нет доступа
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                description: Не найдено
+          description: ''
+  /api/orders/{order_id}/complete/:
+    put:
+      operationId: api_orders_complete_update
+      summary: Завершить заявку (модератор)
+      parameters:
+      - in: path
+        name: order_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Orders
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Завершена
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Ошибка
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                description: Только модератор
+          description: ''
+  /api/orders/{order_id}/delete/:
+    delete:
+      operationId: api_orders_delete_destroy
+      summary: Удалить заявку
+      parameters:
+      - in: path
+        name: order_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Orders
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Удалена
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Ошибка
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                description: Нет доступа
+          description: ''
+  /api/orders/{order_id}/reject/:
+    put:
+      operationId: api_orders_reject_update
+      summary: Отклонить заявку (модератор)
+      parameters:
+      - in: path
+        name: order_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Orders
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Отклонена
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Ошибка
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                description: Только модератор
+          description: ''
+  /api/orders/{order_id}/submit/:
+    put:
+      operationId: api_orders_submit_update
+      summary: Сформировать заявку
+      parameters:
+      - in: path
+        name: order_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Orders
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Сформирована
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Ошибка
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                description: Нет доступа
+          description: ''
+  /api/orders/{order_id}/update/:
+    put:
+      operationId: api_orders_update_update
+      summary: Обновить заявку
+      parameters:
+      - in: path
+        name: order_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                delivery_address:
+                  type: string
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Обновлено
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Ошибка
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                description: Нет доступа
+          description: ''
+  /api/orders/cart/:
+    get:
+      operationId: api_orders_cart_retrieve
+      summary: Иконка корзины
+      tags:
+      - Orders
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Информация о корзине
+          description: ''
+  /api/register/:
+    post:
+      operationId: api_register_create
+      summary: Регистрация пользователя
+      tags:
+      - Auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+                email:
+                  type: string
+                  format: email
+              required:
+              - username
+              - password
+              - email
+            examples:
+              Пример:
+                value:
+                  username: newuser
+                  password: password123
+                  email: newuser@example.com
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                description: Зарегистрирован
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Ошибка
+          description: ''
+  /api/schema/:
+    get:
+      operationId: api_schema_retrieve
+      description: |-
+        OpenApi3 schema for this API. Format can be selected via content negotiation.
+
+        - YAML: application/vnd.oai.openapi
+        - JSON: application/vnd.oai.openapi+json
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - yaml
+      - in: query
+        name: lang
+        schema:
+          type: string
+          enum:
+          - af
+          - ar
+          - ar-dz
+          - ast
+          - az
+          - be
+          - bg
+          - bn
+          - br
+          - bs
+          - ca
+          - ckb
+          - cs
+          - cy
+          - da
+          - de
+          - dsb
+          - el
+          - en
+          - en-au
+          - en-gb
+          - eo
+          - es
+          - es-ar
+          - es-co
+          - es-mx
+          - es-ni
+          - es-ve
+          - et
+          - eu
+          - fa
+          - fi
+          - fr
+          - fy
+          - ga
+          - gd
+          - gl
+          - he
+          - hi
+          - hr
+          - hsb
+          - hu
+          - hy
+          - ia
+          - id
+          - ig
+          - io
+          - is
+          - it
+          - ja
+          - ka
+          - kab
+          - kk
+          - km
+          - kn
+          - ko
+          - ky
+          - lb
+          - lt
+          - lv
+          - mk
+          - ml
+          - mn
+          - mr
+          - ms
+          - my
+          - nb
+          - ne
+          - nl
+          - nn
+          - os
+          - pa
+          - pl
+          - pt
+          - pt-br
+          - ro
+          - ru
+          - sk
+          - sl
+          - sq
+          - sr
+          - sr-latn
+          - sv
+          - sw
+          - ta
+          - te
+          - tg
+          - th
+          - tk
+          - tr
+          - tt
+          - udm
+          - ug
+          - uk
+          - ur
+          - uz
+          - vi
+          - zh-hans
+          - zh-hant
+      tags:
+      - api
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.oai.openapi:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/yaml:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/vnd.oai.openapi+json:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/services/:
+    get:
+      operationId: api_services_retrieve
+      summary: Список услуг
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: string
+        description: Фильтр по категории
+      - in: query
+        name: name
+        schema:
+          type: string
+        description: Поиск по названию
+      - in: query
+        name: price_max
+        schema:
+          type: integer
+        description: Максимальная цена
+      - in: query
+        name: price_min
+        schema:
+          type: integer
+        description: Минимальная цена
+      tags:
+      - Services
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Список услуг
+                content:
+                  application/json:
+                    example:
+                      status: success
+                      data:
+                      - id: 1
+                        name: iPhone 16 Pro
+                        price: 120000
+                        category: Смартфоны
+          description: ''
+  /api/services/{service_id}/:
+    get:
+      operationId: api_services_retrieve_2
+      summary: Детали услуги
+      parameters:
+      - in: path
+        name: service_id
+        schema:
+          type: integer
+        description: ID услуги
+        required: true
+      tags:
+      - Services
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                description: Детали услуги
+                content:
+                  application/json:
+                    example:
+                      status: success
+                      data:
+                        id: 1
+                        name: iPhone 16 Pro
+                        price: 120000
+                        category: Смартфоны
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                description: Услуга не найдена
+          description: ''
+  /api/services/create/:
+    post:
+      operationId: api_services_create_create
+      summary: Создание услуги
+      tags:
+      - Services
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Новая услуга
+                price:
+                  type: number
+                  example: 10000
+                description:
+                  type: string
+                  example: Описание
+                category:
+                  type: string
+                  example: Электроника
+                brand:
+                  type: string
+                  example: Brand
+                image:
+                  type: string
+                  format: binary
+              required:
+              - name
+              - price
+              - description
+              - category
+              - brand
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                description: Услуга создана
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                description: Ошибка валидации
+          description: ''
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+tags:
+- name: Services
+  description: Services management
+- name: Orders
+  description: Orders management
+- name: OrderItems
+  description: Order items management
+- name: Auth
+  description: Authentication endpoints

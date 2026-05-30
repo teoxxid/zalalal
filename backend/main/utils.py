@@ -1,18 +1,16 @@
-from .user_singleton import current_user
+# backend/main/utils.py
+from django.contrib.auth import get_user_model
 
-def get_current_user():
-    """Возвращает фиксированного пользователя (singleton)"""
-    return current_user.get_user()
+User = get_user_model()
+
+
+def get_current_user(request=None):
+    """Возвращает аутентифицированного пользователя из запроса или None"""
+    if request and hasattr(request, "user") and request.user.is_authenticated:
+        return request.user
+    return None
+
 
 def get_moderator_user():
-    """Возвращает модератора (пользователя с ролью ADMIN)"""
-    from .models import User
-    
-    moderator = User.objects.filter(is_superuser=True).first()
-    if not moderator:
-        moderator = User.objects.create_superuser(
-            username='moderator',
-            password='moder123',
-            email='moder@example.com'
-        )
-    return moderator
+    """Возвращает первого пользователя с ролью ADMIN (для модерации)"""
+    return User.objects.filter(role="ADMIN").first()

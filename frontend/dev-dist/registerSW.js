@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/voltmarket/dev-sw.js?dev-sw', { scope: '/voltmarket/', type: 'classic' })

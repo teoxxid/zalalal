@@ -1,19 +1,16 @@
 {% extends "main/base.html" %}
-
 {% block title %}Список заявок{% endblock %}
-
 {% block content %}
 <div class="orders-container">
     <h1 class="orders-title">Список заявок</h1>
 
     <div class="orders-filter">
-        <form method="GET" action="{% url 'order_list' %}" class="filter-form">
+        <form method="GET" action="/pages/orders/" class="filter-form">
             <div class="filter-row">
                 <div class="filter-group">
                     <label for="search">Поиск по № заявки:</label>
                     <input type="text" name="search" id="search" value="{{ search_query }}" placeholder="Введите номер..." class="filter-input">
                 </div>
-
                 <div class="filter-group">
                     <label for="status">Статус:</label>
                     <select name="status" id="status" class="filter-select">
@@ -24,21 +21,18 @@
                     </select>
                 </div>
             </div>
-
             <div class="filter-row">
                 <div class="filter-group">
                     <label for="date_from">Дата с:</label>
                     <input type="date" name="date_from" id="date_from" value="{{ date_from }}" class="filter-input">
                 </div>
-
                 <div class="filter-group">
                     <label for="date_to">Дата по:</label>
                     <input type="date" name="date_to" id="date_to" value="{{ date_to }}" class="filter-input">
                 </div>
-
                 <div class="filter-group filter-buttons">
                     <button type="submit" class="filter-btn">Применить</button>
-                    <a href="{% url 'order_list' %}" class="filter-reset">Сбросить</a>
+                    <a href="/pages/orders/" class="filter-reset">Сбросить</a>
                 </div>
             </div>
         </form>
@@ -48,37 +42,22 @@
         <table class="orders-table">
             <thead>
                 <tr>
-                    <th>№ заявки</th>
-                    <th>Статус</th>
-                    <th>Дата создания</th>
-                    <th>Дата оформления</th>
-                    <th>Дата завершения</th>
-                    <th>Сумма</th>
-                    <th>Действия</th>
+                    <th>№ заявки</th><th>Статус</th><th>Дата создания</th><th>Дата оформления</th><th>Дата завершения</th><th>Сумма</th><th>Действия</th>
                 </tr>
             </thead>
             <tbody>
                 {% for order in orders %}
                 <tr class="{% if order.status == 'deleted' %}deleted-row{% endif %}">
                     <td class="order-id">{{ order.id }}</td>
-                    <td>
-                        <span class="status-badge status-{{ order.status }}">
-                            {% if order.status == 'draft' %}Черновик
-                            {% elif order.status == 'deleted' %}Удалена
-                            {% elif order.status == 'submitted' %}Сформирована
-                            {% elif order.status == 'completed' %}Завершена
-                            {% elif order.status == 'rejected' %}Отклонена
-                            {% endif %}
-                        </span>
-                    </td>
+                    <td><span class="status-badge status-{{ order.status }}">{% if order.status == 'draft' %}Черновик{% elif order.status == 'deleted' %}Удалена{% elif order.status == 'submitted' %}Сформирована{% elif order.status == 'completed' %}Завершена{% elif order.status == 'rejected' %}Отклонена{% endif %}</span></td>
                     <td>{{ order.created_at|date:"d.m.Y H:i:s" }}</td>
                     <td>{{ order.submitted_at|date:"d.m.Y H:i:s"|default:"--" }}</td>
                     <td>{{ order.completed_at|date:"d.m.Y H:i:s"|default:"--" }}</td>
                     <td class="order-amount">{{ order.total_amount }} ₽</td>
                     <td>
-                        <a href="{% url 'order_detail' order.id %}" class="table-btn view-btn">Просмотр</a>
+                        <a href="/pages/order/{{ order.id }}/" class="table-btn view-btn">Просмотр</a>
                         {% if order.status == 'draft' %}
-                        <form method="POST" action="{% url 'delete_order' order.id %}" class="table-form" style="display: inline;">
+                        <form method="POST" action="/delete-order/{{ order.id }}/" class="table-form" style="display: inline;">
                             {% csrf_token %}
                             <button type="submit" class="table-btn delete-btn" onclick="return confirm('Удалить заявку?')">Удалить</button>
                         </form>
@@ -86,16 +65,14 @@
                     </td>
                 </tr>
                 {% empty %}
-                <tr>
-                    <td colspan="7" class="empty-table">Заявок не найдено</td>
-                </tr>
+                <tr><td colspan="7" class="empty-table">Заявок не найдено</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 
     <div class="orders-actions">
-        <a href="{% url 'service_list' %}" class="create-order-btn">+ Создать новую заявку</a>
+        <a href="/pages/catalog/" class="create-order-btn">+ Создать новую заявку</a>
     </div>
 </div>
 {% endblock %}

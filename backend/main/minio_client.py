@@ -1,6 +1,7 @@
 import io
-
 from minio import Minio
+from minio.error import S3Error
+import json
 
 MINIO_ENDPOINT = "localhost:9000"
 MINIO_ACCESS_KEY = "minioadmin"
@@ -50,18 +51,10 @@ def upload_file_to_minio(file, object_name):
             content_type=file.content_type,
         )
 
-        # Открываем публичный доступ к файлу
-        try:
-            minio_client.set_bucket_policy(
-                MINIO_BUCKET, f"{MINIO_BUCKET}/{object_name}", "readonly"
-            )
-        except Exception as policy_error:
-            print(
-                f"Предупреждение: не удалось установить "
-                f"политику доступа: {policy_error}"
-            )
-
         return True
+    except S3Error as e:
+        print(f"Ошибка MinIO: {e}")
+        return False
     except Exception as e:
         print(f"Ошибка загрузки в MinIO: {e}")
         return False
@@ -70,9 +63,37 @@ def upload_file_to_minio(file, object_name):
 def check_minio_connection():
     """Проверяет подключение к MinIO"""
     try:
+        # Проверяем существование бакета
+        if not minio_client.bucket_exists(MINIO_BUCKET):
+            minio_client.make_bucket(MINIO_BUCKET)
+            print(f"Бакет {MINIO_BUCKET} создан")
+        
         buckets = minio_client.list_buckets()
         print(f"Подключение к MinIO успешно. Бакеты: {[b.name for b in buckets]}")
         return True
     except Exception as e:
         print(f"Ошибка подключения к MinIO: {e}")
         return False
+
+
+def set_public_read_policy():
+    """Устанавливает политику публичного чтения для бакета"""
+    try:
+        policy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {"AWS": "*"},
+                    "Action": ["s3:GetObject"],
+                    "Resource": [f"arn:aws:s3:::{MINIO_BUCKET}/*"]
+                }
+            ]
+        }
+        minio_client.set_bucket_policy(MINIO_BUCKET, json.dumps(policy))
+        print(f"Политика публичного чтения установлена для {MINIO_BUCKET}")
+        return True
+    except Exception as e:
+        print(f"Ошибка установки политики: {e}")
+        return False
+    

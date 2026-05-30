@@ -1,51 +1,83 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { useNavigate, Link } from 'react-router-dom';
+import { loginThunk } from '../store/thunks/authThunks';
+import { showNotification } from '../store/slices/uiSlice';
+import type { AppDispatch } from '../store';
 
 const Login: React.FC = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const { login } = useAuth();
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+
     try {
-      await login(username, password);
+      await dispatch(loginThunk(formData));
+      // Редирект на главную после успешного входа
       navigate('/');
-    } catch (err) {
-      setError('Неверный логин или пароль');
+    } catch (error) {
+      dispatch(showNotification({ type: 'error', message: 'Ошибка входа' }));
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: '50px auto', padding: 20 }}>
-      <h2>Вход</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Логин:</label><br />
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            style={{ width: '100%', padding: 8, marginBottom: 10 }}
-          />
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-header">
+          <h1 className="auth-title">Вход</h1>
+          <p className="auth-subtitle">Введите данные для доступа к аккаунту</p>
         </div>
-        <div>
-          <label>Пароль:</label><br />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ width: '100%', padding: 8, marginBottom: 10 }}
-          />
+
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div className="form-group">
+            <label className="form-label" htmlFor="username">Имя пользователя</label>
+            <input
+              id="username"
+              type="text"
+              className="form-input"
+              value={formData.username}
+              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              placeholder="Введите имя пользователя"
+              required
+              disabled={isLoading}
+              autoComplete="username"
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="password">Пароль</label>
+            <input
+              id="password"
+              type="password"
+              className="form-input"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              placeholder="Введите пароль"
+              required
+              disabled={isLoading}
+              autoComplete="current-password"
+            />
+          </div>
+
+          <button type="submit" className="auth-submit-btn" disabled={isLoading}>
+            {isLoading ? 'Вход...' : 'Войти'}
+          </button>
+        </form>
+
+        <div className="auth-footer">
+          <span>Нет аккаунта?</span>
+          <Link to="/register/" className="auth-link">Зарегистрироваться</Link>
         </div>
-        <button type="submit" style={{ padding: '10px 20px' }}>Войти</button>
-      </form>
+      </div>
     </div>
   );
 };

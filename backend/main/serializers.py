@@ -4,6 +4,7 @@ from .models import Order, OrderItem, Service, User
 
 class ServiceSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
+    video_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Service
@@ -13,6 +14,7 @@ class ServiceSerializer(serializers.ModelSerializer):
             "price",
             "description",
             "image_url",
+            "video_url",
             "category",
             "brand",
             "rating",
@@ -21,6 +23,11 @@ class ServiceSerializer(serializers.ModelSerializer):
     def get_image_url(self, obj):
         if obj.image_key:
             return f"http://localhost:9000/services/{obj.image_key}"
+        return None
+
+    def get_video_url(self, obj):
+        if obj.video_key:
+            return f"http://localhost:9000/services/{obj.video_key}"
         return None
 
 
@@ -39,7 +46,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = '__all__'
+        fields = "__all__"
 
 
 class OrderListSerializer(serializers.ModelSerializer):

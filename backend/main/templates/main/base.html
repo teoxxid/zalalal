@@ -1,45 +1,75 @@
-<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoltMarket - {% block title %}{% endblock %}</title>
-    {% load static %}
+    <title>{% block title %}VoltMarket{% endblock %}</title>
+    
+    <!-- 🔹 1. Сначала Bootstrap (для сетки и утилит) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- 🔹 2. Потом ТВОЙ кастомный CSS (переопределяет Bootstrap) -->
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
+    <!-- 🔹 Хедер — под твой CSS (классы .header, .logo, .main-nav и т.д.) -->
     <header class="header">
-        <a href="{% url 'index' %}" class="logo">
+        <a href="{% url 'main:index' %}" class="logo">
             <span class="logo-text">VoltMarket</span>
         </a>
-
+        
         <nav class="main-nav">
-            <a href="{% url 'index' %}" class="nav-link {% if request.path == '/' %}active{% endif %}">Главная</a>
-            <a href="{% url 'service_list' %}" class="nav-link {% if request.path == '/catalog/' %}active{% endif %}">Каталог</a>
-            <a href="{% url 'order_list' %}" class="nav-link {% if request.path == '/orders/' %}active{% endif %}">Все заявки</a>
+            <a href="{% url 'main:index' %}" class="nav-link active">Главная</a>
+            <a href="{% url 'main:service_list' %}" class="nav-link">Каталог</a>
         </nav>
-
+        
         <div class="header-right">
-            <form method="GET" action="{% url 'service_list' %}" class="search-form">
-                <input
-                    type="text"
-                    name="search"
-                    value="{{ search_query }}"
-                    placeholder="Поиск товаров..."
-                    class="search-input"
-                >
-                <button type="submit" class="search-button">Найти</button>
+            <!-- Поиск -->
+            <form method="GET" action="{% url 'main:service_list' %}" class="search-form">
+                <input type="text" name="search" class="search-input" placeholder="Поиск по названию...">
+                <button type="submit" class="search-button">🔍</button>
             </form>
-
-            <a href="{% if current_order %}{% url 'order_detail' current_order.id %}{% else %}#{% endif %}" class="cart-widget">
-                <span class="cart-text">Корзина</span>
-                <span class="cart-count">{{ cart_items_count }}</span>
+            
+            <!-- Корзина / Заявки -->
+            <a href="{% url 'main:order_list' %}" class="cart-widget">
+                <span class="cart-text">🛒 Заявки</span>
+                {% if cart_items_count %}
+                    <span class="cart-count">{{ cart_items_count }}</span>
+                {% endif %}
             </a>
+            
+            <!-- Авторизация -->
+            {% if request.user.is_authenticated %}
+                <span class="nav-link">👤 {{ request.user.username }}</span>
+                <form method="POST" action="/logout/" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="nav-link" style="background:none;border:none;color:#005bff;cursor:pointer;padding:0;">Выйти</button>
+                </form>
+            {% else %}
+                <a href="/login/" class="nav-link">Войти</a>
+            {% endif %}
         </div>
     </header>
 
+    <!-- 🔹 Основной контент -->
     <main>
+        {% if error %}
+            <div class="container py-4">
+                <div class="alert alert-danger">{{ error }}</div>
+            </div>
+        {% endif %}
+        
         {% block content %}{% endblock %}
     </main>
+
+    <!-- 🔹 Футер -->
+    <footer class="bg-light py-3 mt-5">
+        <div class="container text-center text-muted">
+            <small>&copy; 2026 VoltMarket. Лабораторная работа.</small>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS (для модальных окон, если понадобятся) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

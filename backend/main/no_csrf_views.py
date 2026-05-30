@@ -5,7 +5,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import api_view, permission_classes
 
-@method_decorator(csrf_exempt, name='dispatch')
+
+@method_decorator(csrf_exempt, name="dispatch")
 class NoCSRFAPIView(APIView):
     """Базовый класс для API без CSRF"""
+
     permission_classes = [AllowAny]

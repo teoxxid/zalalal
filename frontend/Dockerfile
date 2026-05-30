@@ -1,4 +1,3 @@
-# Этап 1: Сборка React-приложения
 FROM node:22-alpine as build
 
 WORKDIR /app
@@ -9,13 +8,10 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-# Этап 2: Nginx с поддержкой клиентского роутинга
 FROM nginx:alpine
 
-# Копируем собранное приложение
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Копируем конфиг nginx для поддержки React Router
 RUN echo 'server { \
     listen 80; \
     server_name localhost; \

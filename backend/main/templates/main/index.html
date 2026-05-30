@@ -1,28 +1,32 @@
-{% extends "main/base.html" %}
-{% load static %}
+{% extends 'main/base.html' %}
 
-{% block title %}Главная - Видеопрезентации{% endblock %}
+{% block title %}Главная — VoltMarket{% endblock %}
 
 {% block content %}
+<!-- Геро-секция с видео -->
 <div class="hero-section">
     <video autoplay muted loop playsinline class="hero-background-video">
-        <source src="{{ data.background_video_url }}" type="video/mp4">
+        <source src="{{ background_video_url }}" type="video/mp4">
     </video>
     <div class="hero-overlay">
         <h1>Маркетплейс электронной техники</h1>
         <p>Лучшие товары от лучших производителей</p>
-        <a href="{% url 'service_list' %}" class="hero-btn">Перейти в каталог</a>
+        <a href="/pages/catalog/" class="hero-btn">Перейти в каталог</a>
     </div>
 </div>
 
+<!-- Популярные товары -->
 <div class="video-catalog">
     <h2>Популярные товары</h2>
+    
+    {% if services %}
     <div class="video-grid">
-        {% for service in data.services %}
+        {% for service in services %}
         <div class="video-card">
-            <a href="{% url 'service_detail' service.id %}" class="video-thumbnail-link">
+            <a href="/pages/service/{{ service.id }}/" class="video-thumbnail-link">
                 <div class="video-thumbnail">
-                    <img src="{{ service.image_url }}" alt="{{ service.name }}">
+                    <img src="{{ service.image_url }}" alt="{{ service.name }}"
+                         onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
                 </div>
             </a>
             <div class="video-info">
@@ -32,13 +36,24 @@
         </div>
         {% endfor %}
     </div>
+    {% else %}
+    <p style="text-align:center;color:#666;padding:40px;">Товары временно недоступны</p>
+    {% endif %}
 </div>
 
-<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 60px 20px; text-align: center;">
+<!-- CTA блок -->
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 60px 20px; text-align: center; margin-top:60px;">
     <div style="max-width: 600px; margin: 0 auto;">
         <h2 style="color: white; font-size: 36px; margin-bottom: 15px;">Готовы сделать заказ?</h2>
-        <p style="color: rgba(255,255,255,0.9); font-size: 18px; margin-bottom: 30px;">Перейдите в каталог и выберите нужные товары</p>
-        <a href="{% url 'service_list' %}" style="display: inline-block; padding: 15px 40px; background: white; color: #667eea; text-decoration: none; border-radius: 50px; font-size: 18px; font-weight: 600; transition: all 0.3s;">Перейти в каталог</a>
+        <p style="color: rgba(255,255,255,0.9); font-size: 18px; margin-bottom: 30px;">
+            Перейдите в каталог и выберите нужные товары
+        </p>
+        <a href="/pages/catalog/" 
+           style="display: inline-block; padding: 15px 40px; background: white; color: #667eea; 
+                  text-decoration: none; border-radius: 50px; font-size: 18px; font-weight: 600; 
+                  transition: all 0.3s;">
+            Перейти в каталог
+        </a>
     </div>
 </div>
 {% endblock %}
