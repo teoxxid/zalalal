@@ -159,14 +159,14 @@ const ServiceDetail: React.FC = () => {
     );
   }
 
-  const hasValidVideo = service.video_url && !hasVideoError && !isMockMode;
+  const hasValidVideo = service.video_url && !hasVideoError;
 
   return (
     <div className="container">
       <div className="product-detail-card">
         <div className="product-detail-image-section">
           <div className="product-image-container">
-            {service.video_url && service.image_url && !isMockMode && (
+            {service.video_url && service.image_url && (
               <button
                 type="button"
                 className="media-arrow media-arrow-left"
@@ -197,7 +197,7 @@ const ServiceDetail: React.FC = () => {
                 onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
               />
             )}
-            {service.video_url && service.image_url && !isMockMode && (
+            {service.video_url && service.image_url && (
               <button
                 type="button"
                 className="media-arrow media-arrow-right"
@@ -208,7 +208,7 @@ const ServiceDetail: React.FC = () => {
               </button>
             )}
           </div>
-          {service.video_url && service.image_url && !isMockMode && (
+          {service.video_url && service.image_url && (
             <div className="media-dots" aria-label="Текущее медиа">
               <span className={activeMedia === 'video' ? 'active' : ''} />
               <span className={activeMedia === 'image' ? 'active' : ''} />

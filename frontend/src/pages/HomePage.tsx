@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toMediaUrl } from '../services/api';
 import { fetchServices, MOCK_SERVICES, type Service } from '../services/serviceFetch';
+import { publicAssetUrl } from '../services/mediaAssets';
 
 interface HomePageProps {
   user: { username: string; role: 'USER' | 'ADMIN' } | null;
@@ -45,39 +46,29 @@ const HomePage: React.FC<HomePageProps> = ({ user, services: propServices }) => 
   }, [propServices, isMockMode]);
 
   const services = propServices && propServices.length > 0 ? propServices : popularServices;
-  const showVideo = !isMockMode;
+  const heroVideoUrl = isMockMode
+    ? publicAssetUrl('background.mp4')
+    : toMediaUrl('http://localhost:9000/services/background.mp4');
 
   return (
     <>
-      {showVideo && (
-        <section className="hero-section">
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="hero-background-video"
-          >
-            <source src={toMediaUrl('http://localhost:9000/services/background.mp4')} type="video/mp4" />
-          </video>
-          <div className="hero-overlay">
-            <h1>Маркетплейс электронной техники</h1>
-            <p>Лучшие товары от лучших производителей</p>
-            <Link to="/catalog/" className="hero-btn">Перейти в каталог</Link>
-          </div>
-        </section>
-      )}
+      <section className="hero-section">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="hero-background-video"
+        >
+          <source src={heroVideoUrl} type="video/mp4" />
+        </video>
+        <div className="hero-overlay">
+          <h1>Маркетплейс электронной техники</h1>
+          <p>Лучшие товары от лучших производителей</p>
+          <Link to="/catalog/" className="hero-btn">Перейти в каталог</Link>
+        </div>
+      </section>
       
-      {!showVideo && (
-        <section className="hero-section" style={{ background: 'linear-gradient(135deg, #005bff 0%, #0047cc 100%)' }}>
-          <div className="hero-overlay" style={{ background: 'transparent' }}>
-            <h1>Маркетплейс электронной техники</h1>
-            <p>Лучшие товары от лучших производителей</p>
-            <Link to="/catalog/" className="hero-btn">Перейти в каталог</Link>
-          </div>
-        </section>
-      )}
-
       <section className="video-catalog">
         <h2>Популярные товары</h2>
         {loadingServices ? (

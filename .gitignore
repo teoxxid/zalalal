@@ -18,6 +18,7 @@ htmlcov/
 
 frontend/dist/
 frontend/node_modules/
+frontend/public/minio-files/
 backend/.pytest_cache/
 backend/htmlcov/
 marketplace-tauri/node_modules/

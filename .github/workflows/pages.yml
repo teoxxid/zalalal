@@ -12,6 +12,9 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -48,6 +51,8 @@ jobs:
           test -f frontend/dist/index.html
           test -f frontend/dist/404.html
           test -d frontend/dist/assets
+          test -f frontend/dist/minio-files/AppleiPhone16Pro128.jpg
+          test -f frontend/dist/minio-files/iphone16pro.mp4
           echo "Pages artifact:"
           find frontend/dist -maxdepth 2 -type f | sort | head -40
 
@@ -71,3 +76,6 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Print Pages URL
+        run: echo "GitHub Pages URL is ${{ steps.deployment.outputs.page_url }}"

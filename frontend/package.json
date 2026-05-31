@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:mock": "tsc -b && vite build --config vite.mock.config.mjs",
+    "build:mock": "node scripts/copy-minio-assets.mjs && tsc -b && vite build --config vite.mock.config.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "deploy": "npm run build:mock && npx gh-pages -d dist",
