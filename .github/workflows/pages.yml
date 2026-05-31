@@ -40,10 +40,15 @@ jobs:
         working-directory: frontend
         run: npm run build:mock
 
+      - name: Verify Pages artifact
+        run: |
+          test -f frontend/dist/index.html
+          test -d frontend/dist/assets
+          echo "Pages artifact:"
+          find frontend/dist -maxdepth 2 -type f | sort | head -40
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
