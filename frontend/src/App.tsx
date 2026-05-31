@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, Link, useParams, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState, AppDispatch } from './store';
 
@@ -39,9 +39,9 @@ const NotFoundPage: React.FC = () => (
     <div className="not-found-card">
       <h1 className="not-found-code">404</h1>
       <p className="not-found-text">Страница не найдена</p>
-      <a href="/catalog/" className="btn btn-primary">
+      <Link to="/catalog/" className="btn btn-primary">
         Вернуться в каталог
-      </a>
+      </Link>
     </div>
   </div>
 );

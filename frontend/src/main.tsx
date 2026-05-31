@@ -18,10 +18,15 @@ if (!rootElement) {
   throw new Error('Не найден элемент #root в index.html');
 }
 
+const routerBasename =
+  import.meta.env.BASE_URL === '/'
+    ? undefined
+    : import.meta.env.BASE_URL.replace(/\/$/, '');
+
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <Provider store={store}>
-      <BrowserRouter>
+      <BrowserRouter basename={routerBasename}>
         <App />
       </BrowserRouter>
     </Provider>
