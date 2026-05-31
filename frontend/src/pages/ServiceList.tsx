@@ -141,16 +141,6 @@ const ServiceList: React.FC = () => {
   const handleAddToCart = async (e: React.MouseEvent, service: Service) => {
     e.stopPropagation();
 
-    if (isMockMode) {
-      dispatch(
-        showNotification({
-          type: 'error',
-          message: 'В демо-режиме добавление товаров в корзину недоступно',
-        })
-      );
-      return;
-    }
-
     if (!user) {
       navigate('/login/', { state: { from: '/catalog/' } });
       dispatch(
@@ -373,7 +363,7 @@ const ServiceList: React.FC = () => {
 
               <button
                 onClick={(e) => handleAddToCart(e, service)}
-                disabled={addingId === service.id || isMockMode}
+                disabled={addingId === service.id}
                 className="add-to-cart-btn"
                 type="button"
                 aria-label={`Добавить ${service.name} в заказ`}

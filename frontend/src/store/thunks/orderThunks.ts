@@ -5,6 +5,18 @@ import { OrderItemsService } from '../../api/services/OrderItemsService';
 import { setCart, addItem, removeItem, updateQuantity, clearCart } from '../slices/cartSlice';
 import { updateOrder } from '../slices/ordersSlice';
 import { showNotification } from '../slices/uiSlice';
+import {
+  addMockCartItem,
+  deleteMockOrder,
+  getMockCart,
+  getMockOrder,
+  getMockOrdersList,
+  isStaticMockMode,
+  removeMockCartItem,
+  setMockOrderStatus,
+  submitMockOrder,
+  updateMockCartItem,
+} from '../../services/mockBackend';
 
 type FetchOrdersParams = {
   status?: string;
@@ -31,6 +43,18 @@ const toCartItems = (items: any[] = []) => items.map((item) => ({
 export const fetchCartIconThunk = createAsyncThunk(
   'cart/fetchIcon',
   async (_, { dispatch, rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      try {
+        const cart = getMockCart();
+        const items = toCartItems(cart?.items || []);
+        dispatch(setCart({ orderId: cart?.id ?? null, items }));
+        return { order_id: cart?.id ?? null, items_count: cart?.items_count ?? items.length };
+      } catch (err: any) {
+        dispatch(clearCart());
+        return rejectWithValue(err?.message || 'Ошибка получения корзины');
+      }
+    }
+
     try {
       const data = readPayload(await OrdersService.apiOrdersCartRetrieve());
       const orderId = data.order_id ?? null;
@@ -50,6 +74,27 @@ export const fetchCartIconThunk = createAsyncThunk(
 export const addToCartThunk = createAsyncThunk(
   'cart/add',
   async (serviceId: number, { dispatch, rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      try {
+        const order = addMockCartItem(serviceId);
+        const item = order.items.find((entry) => entry.service_id === serviceId);
+        if (item) {
+          dispatch(addItem({
+            serviceId,
+            name: item.service_name,
+            price: Number(item.price_at_time),
+            quantity: item.quantity,
+            image_url: item.service?.image_url,
+          }));
+        }
+        dispatch(setCart({ orderId: order.id, preserveItems: true }));
+        dispatch(showNotification({ type: 'success', message: 'Товар добавлен в заказ' }));
+        return order;
+      } catch (err: any) {
+        return rejectWithValue(err?.message || 'Ошибка добавления');
+      }
+    }
+
     try {
       const servicePayload = readPayload(await ServicesService.apiServicesRetrieve2({ serviceId }));
       const responsePayload = readPayload(await OrderItemsService.apiOrderItemsAddCreate({
@@ -78,6 +123,17 @@ export const updateCartItemThunk = createAsyncThunk(
     { orderId, serviceId, quantity }: { orderId: number; serviceId: number; quantity: number },
     { dispatch, rejectWithValue },
   ) => {
+    if (isStaticMockMode()) {
+      try {
+        const order = updateMockCartItem(orderId, serviceId, quantity);
+        dispatch(updateQuantity({ serviceId, quantity }));
+        dispatch(setCart({ orderId: order.id, preserveItems: true }));
+        return order;
+      } catch (err: any) {
+        return rejectWithValue(err?.message || 'Ошибка обновления');
+      }
+    }
+
     try {
       const responsePayload = readPayload(await OrderItemsService.apiOrderItemsUpdateUpdate({
         orderId,
@@ -95,6 +151,18 @@ export const updateCartItemThunk = createAsyncThunk(
 export const removeFromCartThunk = createAsyncThunk(
   'cart/remove',
   async ({ orderId, serviceId }: { orderId: number; serviceId: number }, { dispatch, rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      try {
+        const order = removeMockCartItem(orderId, serviceId);
+        dispatch(removeItem(serviceId));
+        dispatch(setCart({ orderId: order.items.length ? order.id : null, preserveItems: true }));
+        dispatch(showNotification({ type: 'success', message: 'Товар удалён' }));
+        return true;
+      } catch (err: any) {
+        return rejectWithValue(err?.message || 'Ошибка удаления');
+      }
+    }
+
     try {
       await OrderItemsService.apiOrderItemsDeleteDestroy({ orderId, serviceId });
       dispatch(removeItem(serviceId));
@@ -109,6 +177,18 @@ export const removeFromCartThunk = createAsyncThunk(
 export const submitOrderThunk = createAsyncThunk(
   'orders/submit',
   async (orderId: number, { dispatch, rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      try {
+        const order = submitMockOrder(orderId);
+        dispatch(clearCart());
+        dispatch(updateOrder(order));
+        dispatch(showNotification({ type: 'success', message: 'Заявка оформлена' }));
+        return order;
+      } catch (err: any) {
+        return rejectWithValue(err?.message || 'Ошибка оформления');
+      }
+    }
+
     try {
       const responsePayload = readPayload(await OrdersService.apiOrdersSubmitUpdate({ orderId }));
       dispatch(clearCart());
@@ -124,6 +204,14 @@ export const submitOrderThunk = createAsyncThunk(
 export const fetchOrdersThunk = createAsyncThunk(
   'orders/fetchList',
   async (params: FetchOrdersParams | undefined, { rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      try {
+        return getMockOrdersList(params);
+      } catch (err: any) {
+        return rejectWithValue(err?.message || 'Ошибка получения заявок');
+      }
+    }
+
     try {
       return readPayload(await OrdersService.apiOrdersRetrieve({
         status: params?.status,
@@ -139,6 +227,14 @@ export const fetchOrdersThunk = createAsyncThunk(
 export const fetchOrderThunk = createAsyncThunk(
   'orders/fetchDetail',
   async (orderId: number, { rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      try {
+        return getMockOrder(orderId);
+      } catch (err: any) {
+        return rejectWithValue(err?.message || 'Ошибка получения заявки');
+      }
+    }
+
     try {
       return readPayload(await OrdersService.apiOrdersRetrieve2({ orderId }));
     } catch (err: any) {
@@ -150,6 +246,17 @@ export const fetchOrderThunk = createAsyncThunk(
 export const completeOrderThunk = createAsyncThunk(
   'orders/complete',
   async (orderId: number, { dispatch, rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      try {
+        const order = setMockOrderStatus(orderId, 'completed');
+        dispatch(updateOrder(order));
+        dispatch(showNotification({ type: 'success', message: 'Заявка завершена' }));
+        return order;
+      } catch (err: any) {
+        return rejectWithValue(err?.message || 'Ошибка завершения');
+      }
+    }
+
     try {
       const responsePayload = readPayload(await OrdersService.apiOrdersCompleteUpdate({ orderId }));
       dispatch(updateOrder(responsePayload));
@@ -164,6 +271,17 @@ export const completeOrderThunk = createAsyncThunk(
 export const rejectOrderThunk = createAsyncThunk(
   'orders/reject',
   async (orderId: number, { dispatch, rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      try {
+        const order = setMockOrderStatus(orderId, 'rejected');
+        dispatch(updateOrder(order));
+        dispatch(showNotification({ type: 'success', message: 'Заявка отклонена' }));
+        return order;
+      } catch (err: any) {
+        return rejectWithValue(err?.message || 'Ошибка отклонения');
+      }
+    }
+
     try {
       const responsePayload = readPayload(await OrdersService.apiOrdersRejectUpdate({ orderId }));
       dispatch(updateOrder(responsePayload));
@@ -178,6 +296,17 @@ export const rejectOrderThunk = createAsyncThunk(
 export const deleteOrderThunk = createAsyncThunk(
   'orders/delete',
   async (orderId: number, { dispatch, rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      try {
+        const order = deleteMockOrder(orderId);
+        dispatch(updateOrder(order));
+        dispatch(showNotification({ type: 'success', message: 'Заявка удалена' }));
+        return true;
+      } catch (err: any) {
+        return rejectWithValue(err?.message || 'Ошибка удаления');
+      }
+    }
+
     try {
       await OrdersService.apiOrdersDeleteDestroy({ orderId });
       dispatch(showNotification({ type: 'success', message: 'Заявка удалена' }));

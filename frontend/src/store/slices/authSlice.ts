@@ -4,6 +4,7 @@ import {
   loginThunk, 
   registerThunk, 
   logoutThunk,
+  setAuthFromStorage,
 } from '../thunks/authThunks';
 
 export interface UserData {
@@ -139,6 +140,22 @@ const authSlice = createSlice({
         if (typeof window !== 'undefined') {
           localStorage.removeItem('user');
         }
+      })
+
+      .addCase(setAuthFromStorage.fulfilled, (state, action: PayloadAction<AuthResponse | null>) => {
+        state.isLoading = false;
+        state.isAuthChecked = true;
+        state.error = null;
+        if (action.payload?.user) {
+          state.isAuthenticated = true;
+          state.user = action.payload.user;
+        }
+      })
+      .addCase(setAuthFromStorage.rejected, (state) => {
+        state.isLoading = false;
+        state.isAuthenticated = false;
+        state.user = null;
+        state.isAuthChecked = true;
       });
   },
 });

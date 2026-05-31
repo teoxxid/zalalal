@@ -25,12 +25,6 @@ const HomePage: React.FC<HomePageProps> = ({ user, services: propServices }) => 
       return;
     }
     
-    if (isMockMode) {
-      setPopularServices(MOCK_SERVICES);
-      setLoadingServices(false);
-      return;
-    }
-    
     const fetchPopular = async () => {
       try {
         setPopularServices(await fetchServices({ limit: 4 }));

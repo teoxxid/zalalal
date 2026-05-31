@@ -101,15 +101,6 @@ const ServiceDetail: React.FC = () => {
   const handleAddToCart = async () => {
     if (!service) return;
 
-    // 🔹 БЛОКИРОВКА ДЛЯ РЕЖИМА MOCK
-    if (isMockMode) {
-      dispatch(showNotification({ 
-        type: 'error', 
-        message: 'В демо-режиме добавление товаров в корзину недоступно' 
-      }));
-      return;
-    }
-    
     if (!user) {
       dispatch(showNotification({ 
         type: 'info', 
@@ -264,7 +255,7 @@ const ServiceDetail: React.FC = () => {
           {user ? (
             <button
               onClick={handleAddToCart}
-              disabled={isGlobalLoading || addingToCart || isMockMode}
+              disabled={isGlobalLoading || addingToCart}
               className="add-to-order-btn"
             >
               {addingToCart ? 'Добавление...' : 'Добавить в заказ'}

@@ -1,6 +1,13 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { AuthService } from '../../api/services/AuthService';
 import { api } from '../../services/api';
+import {
+  getCurrentMockUser,
+  isStaticMockMode,
+  mockLogin,
+  mockLogout,
+  mockRegister,
+} from '../../services/mockBackend';
 
 export interface UserData {
   id?: number;
@@ -37,6 +44,15 @@ export const loginThunk = createAsyncThunk<
 >(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      try {
+        const user = mockLogin(credentials.username, credentials.password);
+        return { user, token: null };
+      } catch (err: any) {
+        return rejectWithValue(err?.message || 'Ошибка входа');
+      }
+    }
+
     try {
       const result = await AuthService.apiLoginCreate({
         requestBody: credentials,
@@ -55,6 +71,15 @@ export const registerThunk = createAsyncThunk<
 >(
   'auth/register',
   async (data, { rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      try {
+        const user = mockRegister(data.username, data.email, data.password);
+        return { user, token: null };
+      } catch (err: any) {
+        return rejectWithValue(err?.message || 'Ошибка регистрации');
+      }
+    }
+
     try {
       await AuthService.apiRegisterCreate({
         requestBody: {
@@ -83,6 +108,11 @@ export const logoutThunk = createAsyncThunk<
 >(
   'auth/logout',
   async (_, { rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      mockLogout();
+      return true;
+    }
+
     try {
       await AuthService.apiLogoutCreate();
       return true;
@@ -99,6 +129,12 @@ export const checkAuthStatusThunk = createAsyncThunk<
 >(
   'auth/checkStatus',
   async (_, { rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      const user = getCurrentMockUser();
+      if (user) return { user, token: null };
+      return rejectWithValue('Not authenticated');
+    }
+
     try {
       const res = await api.get('/auth/me/');
       return { user: normalizeUser(res.data), token: null };
@@ -115,6 +151,12 @@ export const setAuthFromStorage = createAsyncThunk<
 >(
   'auth/setFromStorage',
   async (_, { rejectWithValue }) => {
+    if (isStaticMockMode()) {
+      const user = getCurrentMockUser();
+      if (user) return { user, token: null };
+      return rejectWithValue('No valid session');
+    }
+
     try {
       const res = await api.get('/auth/me/');
       return { user: normalizeUser(res.data), token: null };

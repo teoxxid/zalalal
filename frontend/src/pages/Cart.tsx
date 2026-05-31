@@ -5,6 +5,7 @@ import type { RootState, AppDispatch } from '../store';
 import { clearCart } from '../store/slices/cartSlice';
 import { showNotification } from '../store/slices/uiSlice';
 import { submitOrderThunk, updateCartItemThunk, removeFromCartThunk } from '../store/thunks/orderThunks';
+import { deleteMockOrder, isStaticMockMode } from '../services/mockBackend';
 
 const Cart: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -49,6 +50,9 @@ const Cart: React.FC = () => {
 
   const handleClearCart = () => {
     if (window.confirm('Очистить всю корзину?')) {
+      if (isStaticMockMode() && orderId) {
+        deleteMockOrder(orderId);
+      }
       dispatch(clearCart());
       dispatch(showNotification({ type: 'success', message: 'Корзина очищена' }));
     }

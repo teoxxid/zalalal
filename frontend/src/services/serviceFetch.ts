@@ -128,6 +128,17 @@ export const MOCK_SERVICES: Service[] = [
   },
 ];
 
+const readMockServices = (): Service[] => {
+  try {
+    const raw = localStorage.getItem('voltmarket_mock_services');
+    if (!raw) return MOCK_SERVICES;
+    const services = JSON.parse(raw);
+    return Array.isArray(services) && services.length ? services : MOCK_SERVICES;
+  } catch {
+    return MOCK_SERVICES;
+  }
+};
+
 const normalizeService = (item: any): Service => ({
   ...item,
   id: Number(item.id),
@@ -181,6 +192,17 @@ export async function fetchServices(filters: ServiceFilters = {}): Promise<Servi
   const query = buildServiceQuery(filters);
   const url = `${API_BASE_URL}/services/${query ? `?${query}` : ''}`;
 
+  const isMockMode =
+    import.meta.env.MODE === 'mock' ||
+    import.meta.env.VITE_APP_MODE === 'mock' ||
+    (import.meta.env.BASE_URL || '/') !== '/';
+
+  if (isMockMode) {
+    const services = applyMockFilters(readMockServices(), filters)
+      .filter((service) => (service.status || 'active') === 'active');
+    return filters.limit ? services.slice(0, filters.limit) : services;
+  }
+
   try {
     const response = await fetch(url, {
       method: 'GET',
@@ -192,12 +214,23 @@ export async function fetchServices(filters: ServiceFilters = {}): Promise<Servi
     return filters.limit ? services.slice(0, filters.limit) : services;
   } catch (error) {
     console.warn('Backend недоступен, использую mock-товары:', error);
-    const services = applyMockFilters(MOCK_SERVICES, filters);
+    const services = applyMockFilters(readMockServices(), filters)
+      .filter((service) => (service.status || 'active') === 'active');
     return filters.limit ? services.slice(0, filters.limit) : services;
   }
 }
 
 export async function fetchServiceById(serviceId: number): Promise<Service> {
+  const isMockMode =
+    import.meta.env.MODE === 'mock' ||
+    import.meta.env.VITE_APP_MODE === 'mock' ||
+    (import.meta.env.BASE_URL || '/') !== '/';
+
+  if (isMockMode) {
+    const service = readMockServices().find((item) => item.id === serviceId) || MOCK_SERVICES[0];
+    return { ...service, id: serviceId };
+  }
+
   try {
     const response = await fetch(`${API_BASE_URL}/services/${serviceId}/`, {
       method: 'GET',

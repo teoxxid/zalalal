@@ -18,11 +18,12 @@ import Navbar from './components/Navbar';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import NotificationToast from './components/NotificationToast';
 
-import { logoutThunk } from './store/thunks/authThunks';
+import { logoutThunk, setAuthFromStorage } from './store/thunks/authThunks';
 import { fetchCartIconThunk } from './store/thunks/orderThunks';
 import { clearNotification } from './store/slices/uiSlice';
 import { clearFilters } from './store/slices/filterSlice';
 import { clearCart } from './store/slices/cartSlice';
+import { isStaticMockMode } from './services/mockBackend';
 
 const ServiceRedirect: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -57,6 +58,12 @@ function App() {
   const filters = useSelector((state: RootState) => state.filters);
 
   const currentPath = useMemo(() => location.pathname, [location.pathname]);
+
+  useEffect(() => {
+    if (isStaticMockMode() && !isAuthenticated) {
+      dispatch(setAuthFromStorage());
+    }
+  }, [dispatch, isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated && user?.username) {

@@ -2,6 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { showNotification } from '../store/slices/uiSlice';
 import { api } from '../services/api';
+import {
+  deleteMockOrder,
+  getMockOrdersList,
+  getMockServices,
+  getMockUsers,
+  isStaticMockMode,
+  setMockOrderStatus,
+  setMockServiceStatus,
+  setMockUserRole,
+} from '../services/mockBackend';
 
 interface User {
   id: number;
@@ -70,6 +80,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
       };
+
+      if (isStaticMockMode()) {
+        const ordersList = getMockOrdersList(params) as unknown as Order[];
+        setOrders(ordersList);
+        setUsers(getMockUsers().map((user) => ({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+        })));
+        setServices(getMockServices() as Service[]);
+        setOrderStats({
+          total: ordersList.filter(o => o.status !== 'draft').length,
+          pending: ordersList.filter(o => o.status === 'submitted').length,
+          completed: ordersList.filter(o => o.status === 'completed').length,
+          rejected: ordersList.filter(o => o.status === 'rejected').length,
+          revenue: ordersList.filter(o => o.status === 'completed').reduce((sum, o) => sum + Number(o.total_amount || 0), 0),
+        });
+        return;
+      }
+
       const [ordersRes, usersRes, servicesRes] = await Promise.allSettled([
         api.get('/orders/', { params }),
         api.get('/users/'),
@@ -108,6 +139,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
     if (!window.confirm(`Подтвердить: ${newStatus === 'completed' ? 'Завершить' : 'Отклонить'} заявку #${orderId}?`)) return;
     setActionLoading(orderId);
     try {
+      if (isStaticMockMode()) {
+        const updatedOrder = setMockOrderStatus(orderId, newStatus) as unknown as Order;
+        setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o));
+        dispatch(showNotification({ type: 'success', message: `Заявка #${orderId} ${newStatus === 'completed' ? 'завершена' : 'отклонена'}` }));
+        await fetchAdminData();
+        return;
+      }
+
       const endpoint = newStatus === 'completed' ? `/api/orders/${orderId}/complete/` : `/api/orders/${orderId}/reject/`;
       const response = await api.put(endpoint.replace('/api', ''));
       if (response.data?.status === 'success') {
@@ -132,6 +171,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
   const handleOrderDelete = async (orderId: number) => {
     setActionLoading(orderId);
     try {
+      if (isStaticMockMode()) {
+        deleteMockOrder(orderId);
+        setOrders(prev => prev.map(order => (
+          order.id === orderId ? { ...order, status: 'deleted' } : order
+        )));
+        dispatch(showNotification({ type: 'success', message: `Заявка #${orderId} удалена` }));
+        await fetchAdminData();
+        return;
+      }
+
       const response = await api.delete(`/orders/${orderId}/delete/`);
       if (response.data?.status === 'success') {
         setOrders(prev => prev.map(order => (
@@ -150,6 +199,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
 
   const handleUserRoleChange = async (userId: number, newRole: 'USER' | 'ADMIN') => {
     try {
+      if (isStaticMockMode()) {
+        const updatedUser = setMockUserRole(userId, newRole);
+        if (updatedUser) {
+          setUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+          dispatch(showNotification({ type: 'success', message: `Роль изменена на ${newRole === 'ADMIN' ? 'Администратор' : 'Пользователь'}` }));
+        }
+        return;
+      }
+
       const res = await api.patch(`/users/${userId}/`, { role: newRole });
       if (res.data?.status === 'success') {
         setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
@@ -165,6 +223,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
   const handleServiceStatusChange = async (serviceId: number, nextStatus: Service['status']) => {
     setActionLoading(serviceId);
     try {
+      if (isStaticMockMode()) {
+        const updatedService = setMockServiceStatus(serviceId, nextStatus) as Service;
+        setServices(prev => prev.map(service => service.id === serviceId ? updatedService : service));
+        dispatch(showNotification({ type: 'success', message: 'Товар обновлён' }));
+        return;
+      }
+
       const res = await api.patch(`/services/${serviceId}/status/`, { status: nextStatus });
       if (res.data?.status === 'success') {
         const updatedService = res.data.data as Service;
@@ -183,6 +248,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
   const handleServiceDelete = async (serviceId: number) => {
     setActionLoading(serviceId);
     try {
+      if (isStaticMockMode()) {
+        setMockServiceStatus(serviceId, 'deleted');
+        setServices(prev => prev.map(service => (
+          service.id === serviceId ? { ...service, status: 'deleted' } : service
+        )));
+        dispatch(showNotification({ type: 'success', message: 'Товар удалён из каталога' }));
+        return;
+      }
+
       const res = await api.delete(`/services/${serviceId}/delete/`);
       if (res.data?.status === 'success') {
         setServices(prev => prev.map(service => (
