@@ -8,6 +8,26 @@ export const API_ORIGIN = import.meta.env.DEV
   : normalizeBaseUrl(import.meta.env.VITE_API_TARGET || window.location.origin);
 
 export const API_BASE_URL = `${API_ORIGIN}/api`;
+export const MINIO_PUBLIC_ENDPOINT = normalizeBaseUrl(
+  import.meta.env.VITE_MINIO_PUBLIC_ENDPOINT || 'http://localhost:9000'
+);
+
+export const toMediaUrl = (url?: string | null): string | undefined => {
+  if (!url) return undefined;
+
+  const minioEndpoint = MINIO_PUBLIC_ENDPOINT;
+  if (url.startsWith('/minio/')) return url;
+  if (url.startsWith(`${minioEndpoint}/`)) {
+    return `/minio/${url.slice(minioEndpoint.length + 1)}`;
+  }
+  if (url.startsWith('http://localhost:9000/')) {
+    return `/minio/${url.slice('http://localhost:9000/'.length)}`;
+  }
+  if (url.startsWith('https://localhost:9000/')) {
+    return `/minio/${url.slice('https://localhost:9000/'.length)}`;
+  }
+  return url;
+};
 
 export const api = axios.create({
   baseURL: API_BASE_URL,

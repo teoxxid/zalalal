@@ -1,21 +1,42 @@
 services:
   backend:
+    profiles:
+      - app
     build: ./backend
     ports:
       - "8000:8000"
     environment:
-      - DEBUG=True
+      - DJANGO_DEBUG=True
+      - DJANGO_SECRET_KEY=django-insecure-local-docker-key
+      - DB_NAME=marketplace
+      - DB_USER=user
+      - DB_PASSWORD=password
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_PUBLIC_ENDPOINT=http://localhost:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_BUCKET=services
+      - MINIO_SECURE=False
     volumes:
       - ./backend:/app
     depends_on:
-      - postgres
-      - minio
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      minio:
+        condition: service_started
     command: python manage.py runserver 0.0.0.0:8000
     networks:
       - default
 
   frontend:
+    profiles:
+      - app
     build: ./frontend
     ports:
       - "5173:80"
@@ -35,6 +56,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d marketplace"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     networks:
       - default
 
@@ -60,8 +86,28 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - C:/Users/teoxxid/minio-data:/data
+      # ИСПРАВЛЕННЫЙ ПУТЬ - используйте относительный путь
+      - ./minio-data:/data
     command: server /data --console-address ":9001"
+    networks:
+      - default
+
+  minio-init:
+    profiles:
+      - setup
+    image: minio/mc
+    container_name: minio-init
+    depends_on:
+      - minio
+    volumes:
+      - ./minio-files:/seed:ro
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 2; done;
+      mc mb --ignore-existing local/services;
+      mc anonymous set download local/services;
+      mc mirror --overwrite /seed local/services;
+      "
     networks:
       - default
 
@@ -95,7 +141,7 @@ services:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_PLUGINS_DISABLE_GRAFANA_AUTO_UPDATE=true  # ← ДОБАВЬТЕ ЭТУ СТРОКУ
+      - GF_PLUGINS_DISABLE_GRAFANA_AUTO_UPDATE=true
     depends_on:
       - prometheus
     restart: unless-stopped
@@ -109,4 +155,3 @@ volumes:
 networks:
   default:
     name: marketplace_network
-    

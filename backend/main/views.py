@@ -23,6 +23,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
+from .minio_client import get_image_url, get_public_file_url, get_video_url
 from .models import Order, OrderItem, Service, User
 from .permissions import IsAdminOnly, IsUserOrAdmin
 from .serializers import (
@@ -105,11 +106,11 @@ def _simple_slugify(text: str) -> str:
 
 
 def _get_service_image_url(image_key: str) -> str:
-    return f"http://localhost:9000/services/{image_key}" if image_key else None
+    return get_image_url(image_key)
 
 
 def _get_service_video_url(video_key: str) -> str | None:
-    return f"http://localhost:9000/services/{video_key}" if video_key else None
+    return get_video_url(video_key)
 
 
 def _get_cart_info(user) -> tuple[Order | None, int]:
@@ -129,7 +130,7 @@ def index(request):
         service.image_url = _get_service_image_url(service.image_key)
 
     current_order, cart_items_count = _get_cart_info(request.user)
-    background_video_url = "http://localhost:9000/services/background.mp4"
+    background_video_url = get_public_file_url("background.mp4")
 
     return render(
         request,
@@ -355,9 +356,12 @@ def complete_order(request, order_id: int):
     summary="Список услуг",
     parameters=[
         OpenApiParameter(name="name", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Поиск по названию"),
+        OpenApiParameter(name="search", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Поиск по названию"),
         OpenApiParameter(name="category", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, description="Фильтр по категории"),
         OpenApiParameter(name="price_min", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Минимальная цена"),
         OpenApiParameter(name="price_max", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, description="Максимальная цена"),
+        OpenApiParameter(name="date_from", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY, description="Дата создания с"),
+        OpenApiParameter(name="date_to", type=OpenApiTypes.DATE, location=OpenApiParameter.QUERY, description="Дата создания по"),
     ],
     responses={
         200: {
@@ -378,19 +382,35 @@ def complete_order(request, order_id: int):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def api_service_list(request):
+    include_all = (
+        request.query_params.get("include_all") == "1"
+        and request.user.is_authenticated
+        and request.user.role == "ADMIN"
+    )
+
     def fetch_services():
-        services = Service.objects.filter(status="active")
+        services = Service.objects.all() if include_all else Service.objects.filter(status="active")
         
-        if name_filter := request.query_params.get("name"):
+        if name_filter := request.query_params.get("name") or request.query_params.get("search"):
             services = services.filter(name__icontains=name_filter)
         if category_filter := request.query_params.get("category"):
+            if category_filter == "all":
+                category_filter = None
+        if category_filter:
             services = services.filter(category__icontains=category_filter)
-        if price_min := request.query_params.get("price_min"):
+        if price_min := request.query_params.get("price_min") or request.query_params.get("price_from"):
             services = services.filter(price__gte=price_min)
-        if price_max := request.query_params.get("price_max"):
+        if price_max := request.query_params.get("price_max") or request.query_params.get("price_to"):
             services = services.filter(price__lte=price_max)
+        if date_from := request.query_params.get("date_from"):
+            services = services.filter(created_at__date__gte=date_from)
+        if date_to := request.query_params.get("date_to"):
+            services = services.filter(created_at__date__lte=date_to)
             
         return ServiceSerializer(services, many=True).data
+
+    if include_all:
+        return Response({"status": "success", "data": fetch_services()})
 
     query_string = request.META.get("QUERY_STRING", "")
     cache_key = f"services_list:{query_string}"
@@ -399,6 +419,33 @@ def api_service_list(request):
     response = Response({"status": "success", "data": data})
     response.headers["X-Cache"] = "HIT" if is_hit else "MISS"
     return response
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAdminOnly])
+def api_service_status(request, service_id: int):
+    service = get_object_or_404(Service, id=service_id)
+    next_status = request.data.get("status")
+    if next_status not in {"active", "inactive", "deleted"}:
+        return Response(
+            {"status": "error", "message": "Недопустимый статус товара"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    service.status = next_status
+    service.save(update_fields=["status"])
+    invalidate_service_cache(service_id=service.id)
+    return Response({"status": "success", "data": ServiceSerializer(service).data})
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAdminOnly])
+def api_service_delete(request, service_id: int):
+    service = get_object_or_404(Service, id=service_id)
+    service.status = "deleted"
+    service.save(update_fields=["status"])
+    invalidate_service_cache(service_id=service.id)
+    return Response({"status": "success", "message": "Товар удален"})
 
 
 @extend_schema(
@@ -926,7 +973,8 @@ def api_order_delete(request, order_id: int):
     try:
         order = Order.objects.get(id=order_id)
         
-        if order.user != request.user:
+        is_admin = request.user.role == "ADMIN"
+        if order.user != request.user and not is_admin:
             auth_logger.warning(
                 f"Order delete denied | user={request.user.username} | order_id={order_id} | "
                 f"reason=not_owner | result=403"
@@ -935,7 +983,7 @@ def api_order_delete(request, order_id: int):
                 {"status": "error", "message": "Нельзя удалить чужую заявку"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if order.status not in ["draft", "submitted"]:
+        if not is_admin and order.status not in ["draft", "submitted"]:
             return Response(
                 {"status": "error", "message": "Нельзя удалить заявку в этом статусе"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -1232,7 +1280,12 @@ def api_login(request):
             return Response({
                 "status": "success",
                 "message": "Аутентификация успешна (сессия не сохранена)",
-                "data": {"username": user.username, "role": user.role},
+                "data": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "role": user.role,
+                },
                 "warning": "Session storage unavailable",
             })
         
@@ -1240,7 +1293,12 @@ def api_login(request):
         return Response({
             "status": "success",
             "message": "Аутентификация успешна",
-            "data": {"username": user.username, "role": user.role},
+            "data": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+            },
         })
     else:
         AUTH_LOGIN_TOTAL.labels(status="failed", role="UNKNOWN").inc()

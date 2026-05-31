@@ -65,8 +65,38 @@ python manage.py runserver
 ## Запуск через Docker (из корня проекта)
 
 ```
-cd C:\Users\teoxxid\marketplace
-docker-compose up --build
+cd путь\к\zalalal
+docker compose up -d
+```
+
+Compose по умолчанию поднимает инфраструктуру: PostgreSQL, Redis, MinIO, Adminer, Prometheus и Grafana. Backend и frontend запускаются отдельно, чтобы миграции и заполнение данных не выполнялись автоматически при каждом старте Docker.
+
+Разовая подготовка MinIO:
+
+```
+docker compose --profile setup run --rm minio-init
+```
+
+Разовая подготовка базы:
+
+```
+docker compose run --rm backend python manage.py migrate
+docker compose run --rm backend python manage.py seed_demo_data --skip-minio
+docker compose run --rm backend python manage.py ensure_admin
+```
+
+Запуск backend:
+
+```
+docker compose run --service-ports --rm backend python manage.py runserver 0.0.0.0:8000
+```
+
+Для ручного заполнения базы и MinIO без Docker из папки `backend/`:
+
+```
+python manage.py migrate
+python manage.py seed_demo_data
+python manage.py ensure_admin
 ```
 ## API Endpoints
 
@@ -101,14 +131,18 @@ docker-compose up --build
 
 | Переменная | Описание | Пример |
 |------------|----------|--------|
-| `DEBUG` | Режим отладки | `True` |
-| `SECRET_KEY` | Секретный ключ Django | `django-insecure-key` |
+| `DJANGO_DEBUG` | Режим отладки | `True` |
+| `DJANGO_SECRET_KEY` | Секретный ключ Django | `django-insecure-key` |
 | `ALLOWED_HOSTS` | Разрешённые хосты | `localhost,127.0.0.1` |
 | `DB_NAME` | Название базы данных | `marketplace` |
 | `DB_USER` | Пользователь БД | `user` |
 | `DB_PASSWORD` | Пароль БД | `password` |
 | `DB_HOST` | Хост БД | `postgres` |
 | `DB_PORT` | Порт БД | `5432` |
+| `MINIO_ENDPOINT` | Внутренний endpoint MinIO для backend | `minio:9000` |
+| `MINIO_PUBLIC_ENDPOINT` | Публичный endpoint MinIO для браузера | `http://localhost:9000` |
+| `MINIO_BUCKET` | Bucket с медиафайлами | `services` |
+| `MINIO_SEED_DIR` | Папка с исходными файлами для заполнения MinIO | `../minio-files` |
 
 ## Код-стайл
 

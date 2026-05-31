@@ -12,7 +12,7 @@ SECRET_KEY = os.getenv(
     "django-insecure-CHANGE-THIS-KEY-IF-YOU-HAVE-ONE",
 )
 
-DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
+DEBUG = os.getenv("DJANGO_DEBUG", os.getenv("DEBUG", "True")) == "True"
 RUNNING_LOCALLY = "runserver" in sys.argv or os.getenv("RUN_MODE") == "local"
 SESSION_COOKIE_SECURE_DEFAULT = "False" if DEBUG else "True"
 CSRF_COOKIE_SECURE_DEFAULT = "False" if DEBUG else "True"
@@ -78,6 +78,15 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers) + ["x-csrftoken", "x-requested-with"]
 CORS_ALLOW_METHODS = list(default_methods)
 
+# MinIO
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
+MINIO_PUBLIC_ENDPOINT = os.getenv("MINIO_PUBLIC_ENDPOINT", f"http://{MINIO_ENDPOINT}")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+MINIO_BUCKET = os.getenv("MINIO_BUCKET", "services")
+MINIO_SECURE = os.getenv("MINIO_SECURE", "False") == "True"
+MINIO_SEED_DIR = Path(os.getenv("MINIO_SEED_DIR", BASE_DIR.parent / "minio-files"))
+
 # Application definition
 AUTH_USER_MODEL = "main.User"
 
@@ -129,13 +138,26 @@ TEMPLATES = [
 WSGI_APPLICATION = "marketplace.wsgi.application"
 
 # Database
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-        "CONN_MAX_AGE": 600,
+if os.getenv("DB_HOST"):
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME", "marketplace"),
+            "USER": os.getenv("DB_USER", "user"),
+            "PASSWORD": os.getenv("DB_PASSWORD", "password"),
+            "HOST": os.getenv("DB_HOST", "postgres"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+            "CONN_MAX_AGE": 600,
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+            "CONN_MAX_AGE": 600,
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -198,7 +220,7 @@ SESSION_ENGINE = os.getenv(
 )
 SESSION_CACHE_ALIAS = "default"
 SESSION_COOKIE_AGE = 1209600  # 2 weeks
-SESSION_COOKIE_NAME = "voltmarket_sessionid"
+SESSION_COOKIE_NAME = os.getenv("SESSION_COOKIE_NAME", "voltmarket_local_sessionid")
 SESSION_COOKIE_HTTPONLY = True
 
 # CSRF

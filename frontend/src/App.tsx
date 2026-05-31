@@ -18,7 +18,7 @@ import Navbar from './components/Navbar';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import NotificationToast from './components/NotificationToast';
 
-import { logoutThunk, setAuthFromStorage } from './store/thunks/authThunks';
+import { logoutThunk } from './store/thunks/authThunks';
 import { fetchCartIconThunk } from './store/thunks/orderThunks';
 import { clearNotification } from './store/slices/uiSlice';
 import { clearFilters } from './store/slices/filterSlice';
@@ -57,12 +57,6 @@ function App() {
   const filters = useSelector((state: RootState) => state.filters);
 
   const currentPath = useMemo(() => location.pathname, [location.pathname]);
-
-  useEffect(() => {
-    if (!isAuthChecked) {
-      dispatch(setAuthFromStorage());
-    }
-  }, [dispatch, isAuthChecked]);
 
   useEffect(() => {
     if (isAuthenticated && user?.username) {

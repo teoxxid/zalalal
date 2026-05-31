@@ -25,6 +25,8 @@ urlpatterns = [
     path('api/services/', views.api_service_list, name='api_service_list'),
     path('api/services/<int:service_id>/', views.api_service_detail, name='api_service_detail'),
     path('api/services/create/', views.api_service_create, name='api_service_create'),
+    path('api/services/<int:service_id>/status/', views.api_service_status, name='api_service_status'),
+    path('api/services/<int:service_id>/delete/', views.api_service_delete, name='api_service_delete'),
     
     path('api/orders/cart/', views.api_cart_icon, name='api_cart_icon'),
     path('api/orders/', views.api_order_list, name='api_order_list'),

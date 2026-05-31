@@ -1,20 +1,20 @@
-import { pipeline, env } from '@huggingface/transformers';
-
-// Отключаем лишние логи библиотеки
-env.allowLocalModels = false;
-env.useBrowserCache = true;
-env.remoteHost = 'https://cdn.jsdelivr.net/npm/@huggingface/';
-env.remotePathTemplate = '{model}/{file}';
-
 let extractor: any = null;
 
-export async function getEmbedding(text: string): Promise<number[]> {
+async function getExtractor() {
   if (!extractor) {
-    // Загрузка модели (без лишних опций)
+    const { pipeline, env } = await import('@huggingface/transformers');
+    env.allowLocalModels = false;
+    env.useBrowserCache = true;
+    env.remoteHost = 'https://cdn.jsdelivr.net/npm/@huggingface/';
+    env.remotePathTemplate = '{model}/{file}';
     extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
   }
+  return extractor;
+}
 
-  const output = await extractor(text, {
+export async function getEmbedding(text: string): Promise<number[]> {
+  const featureExtractor = await getExtractor();
+  const output = await featureExtractor(text, {
     pooling: 'mean',
     normalize: true,
   });

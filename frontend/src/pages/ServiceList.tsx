@@ -6,120 +6,7 @@ import { addToCartThunk } from '../store/thunks/orderThunks';
 import { showNotification } from '../store/slices/uiSlice';
 import { setFilters, clearFilters } from '../store/slices/filterSlice';
 import Loader from '../components/Loader';
-import { api } from '../services/api';
-
-export interface Service {
-  id: number;
-  name: string;
-  price: number;
-  description: string;
-  category: string;
-  brand: string;
-  rating?: number;
-  image_url?: string;
-  video_url?: string;
-  status: 'active' | 'inactive' | 'deleted';
-  weight?: number;
-}
-
-const MOCK_SERVICES: Service[] = [
-  {
-    id: 1,
-    name: 'iPhone 16 Pro',
-    price: 120000,
-    description: 'Флагманский смартфон с передовыми технологиями',
-    category: 'Смартфоны',
-    brand: 'Apple',
-    rating: 4.9,
-    image_url: '/placeholder.svg',
-    status: 'active',
-    weight: 0.22,
-  },
-  {
-    id: 2,
-    name: 'Samsung Galaxy S24 Ultra',
-    price: 110000,
-    description: 'Мощный смартфон с продвинутой камерой',
-    category: 'Смартфоны',
-    brand: 'Samsung',
-    rating: 4.8,
-    image_url: '/placeholder.svg',
-    status: 'active',
-    weight: 0.23,
-  },
-  {
-    id: 3,
-    name: 'MacBook Pro 16"',
-    price: 250000,
-    description: 'Профессиональный ноутбук для сложных задач',
-    category: 'Ноутбуки',
-    brand: 'Apple',
-    rating: 4.9,
-    image_url: '/placeholder.svg',
-    status: 'active',
-    weight: 2.1,
-  },
-  {
-    id: 4,
-    name: 'Sony WH-1000XM5',
-    price: 35000,
-    description: 'Беспроводные наушники с шумоподавлением',
-    category: 'Аудио',
-    brand: 'Sony',
-    rating: 4.7,
-    image_url: '/placeholder.svg',
-    status: 'active',
-    weight: 0.25,
-  },
-  {
-    id: 5,
-    name: 'iPad Air',
-    price: 65000,
-    description: 'Универсальный планшет для работы и развлечений',
-    category: 'Планшеты',
-    brand: 'Apple',
-    rating: 4.6,
-    image_url: '/placeholder.svg',
-    status: 'active',
-    weight: 0.46,
-  },
-  {
-    id: 6,
-    name: 'Apple Watch Series 9',
-    price: 45000,
-    description: 'Умные часы с расширенными функциями здоровья',
-    category: 'Носимые устройства',
-    brand: 'Apple',
-    rating: 4.8,
-    image_url: '/placeholder.svg',
-    status: 'active',
-    weight: 0.04,
-  },
-  {
-    id: 7,
-    name: 'Dell XPS 15',
-    price: 180000,
-    description: 'Премиальный ноутбук с безрамочным дисплеем',
-    category: 'Ноутбуки',
-    brand: 'Dell',
-    rating: 4.7,
-    image_url: '/placeholder.svg',
-    status: 'active',
-    weight: 1.8,
-  },
-  {
-    id: 8,
-    name: 'AirPods Pro 2',
-    price: 25000,
-    description: 'Наушники с активным шумоподавлением',
-    category: 'Аудио',
-    brand: 'Apple',
-    rating: 4.8,
-    image_url: '/placeholder.svg',
-    status: 'active',
-    weight: 0.05,
-  },
-];
+import { fetchServices as fetchServicesFromApi, MOCK_SERVICES, type Service } from '../services/serviceFetch';
 
 const ServiceList: React.FC = () => {
   const navigate = useNavigate();
@@ -134,19 +21,28 @@ const ServiceList: React.FC = () => {
   const [localCategory, setLocalCategory] = useState(filters.category);
   const [localPriceFrom, setLocalPriceFrom] = useState(filters.priceFrom?.toString() || '');
   const [localPriceTo, setLocalPriceTo] = useState(filters.priceTo?.toString() || '');
+  const [localDateFrom, setLocalDateFrom] = useState(filters.dateFrom);
+  const [localDateTo, setLocalDateTo] = useState(filters.dateTo);
 
-  const isMockMode = import.meta.env.MODE === 'mock';
+  const isMockMode =
+    import.meta.env.MODE === 'mock' ||
+    import.meta.env.VITE_APP_MODE === 'mock' ||
+    (import.meta.env.BASE_URL || '/') !== '/';
   const [apiServices, setApiServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(!isMockMode);
 
   useEffect(() => {
-    if (isMockMode) return;
-
-    const fetchServices = async () => {
+    const loadServices = async () => {
+      setLoading(true);
       try {
-        const { data: json } = await api.get('/services/');
-        const data = json.data || json.results || json;
-        setApiServices(Array.isArray(data) ? data : []);
+        setApiServices(await fetchServicesFromApi({
+          search: filters.search,
+          category: filters.category,
+          priceFrom: filters.priceFrom,
+          priceTo: filters.priceTo,
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+        }));
       } catch (err) {
         console.error('Failed to fetch services:', err);
         setApiServices(MOCK_SERVICES);
@@ -155,28 +51,11 @@ const ServiceList: React.FC = () => {
       }
     };
 
-    fetchServices();
-  }, [isMockMode]);
+    loadServices();
+  }, [isMockMode, filters]);
 
-  const sourceServices = isMockMode ? MOCK_SERVICES : apiServices;
-
-  const filteredServices = useMemo(() => {
-    return sourceServices.filter((service) => {
-      if (filters.search && !service.name.toLowerCase().includes(filters.search.toLowerCase())) {
-        return false;
-      }
-      if (filters.category && filters.category !== 'all' && service.category !== filters.category) {
-        return false;
-      }
-      if (filters.priceFrom !== null && service.price < filters.priceFrom) {
-        return false;
-      }
-      if (filters.priceTo !== null && service.price > filters.priceTo) {
-        return false;
-      }
-      return true;
-    });
-  }, [sourceServices, filters]);
+  const sourceServices = apiServices;
+  const filteredServices = sourceServices;
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -184,14 +63,25 @@ const ServiceList: React.FC = () => {
     const urlCategory = params.get('category') || '';
     const urlPriceFrom = params.get('price_from');
     const urlPriceTo = params.get('price_to');
+    const urlDateFrom = params.get('date_from') || '';
+    const urlDateTo = params.get('date_to') || '';
 
-    if (urlSearch !== filters.search || urlCategory !== filters.category) {
+    if (
+      urlSearch !== filters.search ||
+      urlCategory !== filters.category ||
+      urlPriceFrom !== (filters.priceFrom == null ? null : String(filters.priceFrom)) ||
+      urlPriceTo !== (filters.priceTo == null ? null : String(filters.priceTo)) ||
+      urlDateFrom !== filters.dateFrom ||
+      urlDateTo !== filters.dateTo
+    ) {
       dispatch(
         setFilters({
           search: urlSearch,
           category: urlCategory,
           priceFrom: urlPriceFrom ? Number(urlPriceFrom) : null,
           priceTo: urlPriceTo ? Number(urlPriceTo) : null,
+          dateFrom: urlDateFrom,
+          dateTo: urlDateTo,
         })
       );
     }
@@ -200,6 +90,8 @@ const ServiceList: React.FC = () => {
     setLocalCategory(urlCategory);
     setLocalPriceFrom(urlPriceFrom || '');
     setLocalPriceTo(urlPriceTo || '');
+    setLocalDateFrom(urlDateFrom);
+    setLocalDateTo(urlDateTo);
   }, [location.search, dispatch, filters]);
 
   const handleApplyFilters = () => {
@@ -211,6 +103,8 @@ const ServiceList: React.FC = () => {
       category: localCategory,
       priceFrom: fromValue,
       priceTo: toValue,
+      dateFrom: localDateFrom,
+      dateTo: localDateTo,
     };
 
     dispatch(setFilters(newFilters));
@@ -221,6 +115,8 @@ const ServiceList: React.FC = () => {
       params.set('category', newFilters.category);
     if (newFilters.priceFrom !== null) params.set('price_from', String(newFilters.priceFrom));
     if (newFilters.priceTo !== null) params.set('price_to', String(newFilters.priceTo));
+    if (newFilters.dateFrom) params.set('date_from', newFilters.dateFrom);
+    if (newFilters.dateTo) params.set('date_to', newFilters.dateTo);
 
     navigate(`/catalog/?${params}`, { replace: true });
   };
@@ -237,6 +133,8 @@ const ServiceList: React.FC = () => {
     setLocalCategory('');
     setLocalPriceFrom('');
     setLocalPriceTo('');
+    setLocalDateFrom('');
+    setLocalDateTo('');
     navigate('/catalog/', { replace: true });
   };
 
@@ -296,7 +194,7 @@ const ServiceList: React.FC = () => {
   };
 
   const categories = useMemo(() => {
-    const unique = [...new Set(sourceServices.map((s) => s.category))];
+    const unique = [...new Set([...MOCK_SERVICES, ...sourceServices].map((s) => s.category))];
     return ['all', ...unique];
   }, [sourceServices]);
 
@@ -370,6 +268,30 @@ const ServiceList: React.FC = () => {
             />
           </div>
 
+          <div className="filter-group">
+            <label>Дата с:</label>
+            <input
+              type="date"
+              value={localDateFrom}
+              onChange={(e) => setLocalDateFrom(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="filter-input"
+              aria-label="Дата создания с"
+            />
+          </div>
+
+          <div className="filter-group">
+            <label>Дата по:</label>
+            <input
+              type="date"
+              value={localDateTo}
+              onChange={(e) => setLocalDateTo(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="filter-input"
+              aria-label="Дата создания по"
+            />
+          </div>
+
           <div className="filter-buttons">
             <button onClick={handleApplyFilters} className="filter-btn filter-apply" type="button">
               Применить
@@ -380,7 +302,7 @@ const ServiceList: React.FC = () => {
           </div>
         </div>
 
-        {(filters.search || filters.category || filters.priceFrom !== null || filters.priceTo !== null) && (
+        {(filters.search || filters.category || filters.priceFrom !== null || filters.priceTo !== null || filters.dateFrom || filters.dateTo) && (
           <div className="active-filters">
             <span>Активные фильтры:</span>
             {filters.search && <span className="filter-tag">{filters.search}</span>}
@@ -392,6 +314,12 @@ const ServiceList: React.FC = () => {
             )}
             {filters.priceTo !== null && (
               <span className="filter-tag">до {filters.priceTo} ₽</span>
+            )}
+            {filters.dateFrom && (
+              <span className="filter-tag">с {filters.dateFrom}</span>
+            )}
+            {filters.dateTo && (
+              <span className="filter-tag">по {filters.dateTo}</span>
             )}
             <button
               onClick={handleResetFilters}

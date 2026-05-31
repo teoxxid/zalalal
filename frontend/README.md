@@ -5,7 +5,7 @@
 ## Стек технологий
 
 - **Frontend:** [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) + [Vite](https://vitejs.dev/)
-- **HTTP-клиент:** [Axios](https://axios-http.com/)
+- **HTTP-клиент:** `fetch` для каталога, [Axios](https://axios-http.com/) и сгенерированный Swagger-клиент для авторизации и заявок
 - **Качество кода:** [ESLint](https://eslint.org/), [Prettier](https://prettier.io/)
 - **Контейнеризация:** [Docker](https://www.docker.com/)
 
@@ -50,6 +50,7 @@ npm run dev
 ```
 
 Приложение будет доступно по адресу: http://localhost:5173
+Запросы `/api/...` в dev-режиме проксируются Vite на backend из `VITE_API_TARGET` или `http://localhost:8000`.
 
 ### Сборка для production
 
@@ -57,11 +58,29 @@ npm run dev
 npm run build
 ```
 
+### Сборка mock/PWA для GitHub Pages
+
+```bash
+npm run build:mock
+npm run deploy
+```
+
+Mock/PWA-сборка использует base path `/zalalal/`. Если API недоступен, карточки берутся из локальной коллекции.
+
 ### Запуск через Docker
 
 ```bash
 # Из корня проекта
-docker-compose up frontend
+docker compose --profile app up frontend
+```
+
+### Tauri
+
+Для сборки нативного приложения укажите IP backend в локальной сети:
+
+```powershell
+$env:VITE_API_TARGET="http://192.168.0.103:8000"
+npm run tauri build
 ```
 
 ## API Endpoints
@@ -99,7 +118,9 @@ docker-compose up frontend
 
 | Переменная     | Описание       | Пример                      |
 | -------------- | -------------- | --------------------------- |
-| `VITE_API_URL` | URL бэкенд API | `http://localhost:8000/api` |
+| `VITE_API_TARGET` | URL backend для proxy/dev/build | `http://localhost:8000` |
+| `VITE_MINIO_PUBLIC_ENDPOINT` | URL MinIO для медиа | `http://localhost:9000` |
+| `VITE_BASE_PATH` | Base path для Pages | `/zalalal/` |
 
 Создайте файл `.env` из `.env.example`:
 
@@ -120,7 +141,8 @@ cp .env.example .env
 
 - **Адаптивная сетка:** 4 колонки на десктопе, 2 на планшете, 1 на мобильных устройствах
 - **Hover-эффекты:** поднятие карточки и тень при наведении
-- **Загрузка данных:** Axios для HTTP-запросов к Django API
+- **Загрузка данных:** `fetch` для ЛР6 каталога с mock fallback, Axios/Swagger clients для ЛР7 заявок и авторизации
+- **Похожие товары:** transformer.js (`@huggingface/transformers`) считает embeddings описаний на странице товара
 - **Обработка ошибок:** отображение сообщения при неудачной загрузке
 
 ## Автор

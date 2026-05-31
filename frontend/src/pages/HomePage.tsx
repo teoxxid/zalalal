@@ -1,32 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../services/api';
-
-interface Service {
-  id: number;
-  name: string;
-  price: number;
-  image_url?: string;
-  category?: string;
-}
+import { toMediaUrl } from '../services/api';
+import { fetchServices, MOCK_SERVICES, type Service } from '../services/serviceFetch';
 
 interface HomePageProps {
   user: { username: string; role: 'USER' | 'ADMIN' } | null;
   services?: Service[];
 }
 
-const MOCK_SERVICES: Service[] = [
-  { id: 1, name: 'iPhone 16 Pro', price: 120000, category: 'Смартфоны', image_url: '/placeholder.svg' },
-  { id: 2, name: 'Samsung Galaxy S24 Ultra', price: 110000, category: 'Смартфоны', image_url: '/placeholder.svg' },
-  { id: 3, name: 'MacBook Pro 16"', price: 250000, category: 'Ноутбуки', image_url: '/placeholder.svg' },
-  { id: 4, name: 'Sony WH-1000XM5', price: 35000, category: 'Аудио', image_url: '/placeholder.svg' },
-];
-
 const HomePage: React.FC<HomePageProps> = ({ user, services: propServices }) => {
   const [popularServices, setPopularServices] = useState<Service[]>([]);
   const [loadingServices, setLoadingServices] = useState(true);
   
-  const isMockMode = import.meta.env.MODE === 'mock';
+  const isMockMode =
+    import.meta.env.MODE === 'mock' ||
+    import.meta.env.VITE_APP_MODE === 'mock' ||
+    (import.meta.env.BASE_URL || '/') !== '/';
 
   useEffect(() => {
     if (propServices && propServices.length > 0) {
@@ -43,10 +32,7 @@ const HomePage: React.FC<HomePageProps> = ({ user, services: propServices }) => 
     
     const fetchPopular = async () => {
       try {
-        const { data: json } = await api.get('/services/', { params: { limit: 4 } });
-        const data = json.results || json.data || json;
-        const servicesList = Array.isArray(data) ? data : [];
-        setPopularServices(servicesList.slice(0, 4));
+        setPopularServices(await fetchServices({ limit: 4 }));
       } catch (err) {
         console.error('Failed to fetch popular services:', err);
         setPopularServices(MOCK_SERVICES);
@@ -59,7 +45,7 @@ const HomePage: React.FC<HomePageProps> = ({ user, services: propServices }) => 
   }, [propServices, isMockMode]);
 
   const services = propServices && propServices.length > 0 ? propServices : popularServices;
-  const showVideo = !isMockMode && import.meta.env.DEV;
+  const showVideo = !isMockMode;
 
   return (
     <>
@@ -72,7 +58,7 @@ const HomePage: React.FC<HomePageProps> = ({ user, services: propServices }) => 
             playsInline
             className="hero-background-video"
           >
-            <source src="http://localhost:9000/services/background.mp4" type="video/mp4" />
+            <source src={toMediaUrl('http://localhost:9000/services/background.mp4')} type="video/mp4" />
           </video>
           <div className="hero-overlay">
             <h1>Маркетплейс электронной техники</h1>

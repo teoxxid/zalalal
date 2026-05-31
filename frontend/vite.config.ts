@@ -6,8 +6,11 @@ import basicSsl from '@vitejs/plugin-basic-ssl';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const apiTarget = (env.VITE_API_TARGET || 'http://localhost:8000').replace(/["']/g, '').replace(/\/+$/, '');
+  const isMockBuild = env.VITE_APP_MODE === 'mock' || mode === 'mock';
+  const basePath = env.VITE_BASE_PATH || (isMockBuild ? '/zalalal/' : '/');
 
   return {
+  base: basePath,
   plugins: [
     react(),
     VitePWA({
@@ -66,6 +69,12 @@ export default defineConfig(({ mode }) => {
         secure: false,
         cookieDomainRewrite: '',
         cookiePathRewrite: '/'
+      },
+      '/minio': {
+        target: 'http://localhost:9000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/minio/, '')
       }
     },
     host: true

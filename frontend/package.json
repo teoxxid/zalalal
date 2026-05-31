@@ -6,13 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:mock": "tsc -b && vite build --config vite.mock.config.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
-    "deploy": "npm run build && npx gh-pages -d dist",
-    "deploy:force": "npm run build && npx gh-pages -d dist -f",
+    "deploy": "npm run build:mock && npx gh-pages -d dist",
+    "deploy:force": "npm run build:mock && npx gh-pages -d dist -f",
     "tauri": "tauri"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.2.0",
     "@reduxjs/toolkit": "^2.2.0",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-log": "^2.8.0",

@@ -3,8 +3,7 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import { 
   loginThunk, 
   registerThunk, 
-  logoutThunk, 
-  setAuthFromStorage 
+  logoutThunk,
 } from '../thunks/authThunks';
 
 export interface UserData {
@@ -30,7 +29,7 @@ const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
   isLoading: false,
-  isAuthChecked: false,
+  isAuthChecked: true,
   error: null,
 };
 
@@ -140,31 +139,6 @@ const authSlice = createSlice({
         if (typeof window !== 'undefined') {
           localStorage.removeItem('user');
         }
-      })
-      
-      .addCase(setAuthFromStorage.pending, (state) => {
-        state.isLoading = true;
-      })
-      .addCase(setAuthFromStorage.fulfilled, (state, action: PayloadAction<AuthResponse | null>) => {
-        state.isLoading = false;
-        state.isAuthChecked = true;
-        
-        if (action.payload?.user) {
-          state.isAuthenticated = true;
-          state.user = action.payload.user;
-          state.error = null;
-        } else {
-          state.isAuthenticated = false;
-          state.user = null;
-          state.error = null;
-        }
-      })
-      .addCase(setAuthFromStorage.rejected, (state) => {
-        state.isLoading = false;
-        state.isAuthChecked = true;
-        state.isAuthenticated = false;
-        state.user = null;
-        state.error = null;
       });
   },
 });

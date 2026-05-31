@@ -24,7 +24,7 @@ interface Service {
   name: string;
   price: number;
   category: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'deleted';
 }
 
 interface OrderStats {
@@ -73,7 +73,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
       const [ordersRes, usersRes, servicesRes] = await Promise.allSettled([
         api.get('/orders/', { params }),
         api.get('/users/'),
-        api.get('/services/'),
+        api.get('/services/', { params: { include_all: 1 } }),
       ]);
 
       if (ordersRes.status === 'fulfilled') {
@@ -129,6 +129,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
     }
   };
 
+  const handleOrderDelete = async (orderId: number) => {
+    setActionLoading(orderId);
+    try {
+      const response = await api.delete(`/orders/${orderId}/delete/`);
+      if (response.data?.status === 'success') {
+        setOrders(prev => prev.map(order => (
+          order.id === orderId ? { ...order, status: 'deleted' } : order
+        )));
+        dispatch(showNotification({ type: 'success', message: `Заявка #${orderId} удалена` }));
+      } else {
+        dispatch(showNotification({ type: 'error', message: 'Ошибка удаления заявки' }));
+      }
+    } catch {
+      dispatch(showNotification({ type: 'error', message: 'Ошибка сети' }));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleUserRoleChange = async (userId: number, newRole: 'USER' | 'ADMIN') => {
     try {
       const res = await api.patch(`/users/${userId}/`, { role: newRole });
@@ -143,13 +162,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
     }
   };
 
+  const handleServiceStatusChange = async (serviceId: number, nextStatus: Service['status']) => {
+    setActionLoading(serviceId);
+    try {
+      const res = await api.patch(`/services/${serviceId}/status/`, { status: nextStatus });
+      if (res.data?.status === 'success') {
+        const updatedService = res.data.data as Service;
+        setServices(prev => prev.map(service => service.id === serviceId ? updatedService : service));
+        dispatch(showNotification({ type: 'success', message: 'Товар обновлён' }));
+      } else {
+        dispatch(showNotification({ type: 'error', message: 'Не удалось обновить товар' }));
+      }
+    } catch {
+      dispatch(showNotification({ type: 'error', message: 'Ошибка сети' }));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleServiceDelete = async (serviceId: number) => {
+    setActionLoading(serviceId);
+    try {
+      const res = await api.delete(`/services/${serviceId}/delete/`);
+      if (res.data?.status === 'success') {
+        setServices(prev => prev.map(service => (
+          service.id === serviceId ? { ...service, status: 'deleted' } : service
+        )));
+        dispatch(showNotification({ type: 'success', message: 'Товар удалён из каталога' }));
+      } else {
+        dispatch(showNotification({ type: 'error', message: 'Не удалось удалить товар' }));
+      }
+    } catch {
+      dispatch(showNotification({ type: 'error', message: 'Ошибка сети' }));
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = { submitted: '#f59e0b', completed: '#10b981', rejected: '#ef4444', deleted: '#94a3b8' };
+    const colors: Record<string, string> = { submitted: '#f59e0b', completed: '#10b981', rejected: '#ef4444', deleted: '#94a3b8', active: '#10b981', inactive: '#64748b' };
     return colors[status] || '#64748b';
   };
 
   const getStatusText = (status: string) => {
-    const texts: Record<string, string> = { submitted: 'На рассмотрении', completed: 'Завершена', rejected: 'Отклонена', deleted: 'Удалена' };
+    const texts: Record<string, string> = { submitted: 'На рассмотрении', completed: 'Завершена', rejected: 'Отклонена', deleted: 'Удалена', active: 'Активен', inactive: 'Скрыт' };
+    return texts[status] || status;
+  };
+
+  const getServiceStatusText = (status: string) => {
+    const texts: Record<string, string> = { active: 'Активен', inactive: 'Скрыт', deleted: 'Удалён' };
     return texts[status] || status;
   };
 
@@ -333,8 +394,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
                       </td>
                       <td style={{ fontSize: '13px', color: '#666' }}>{formatDate(order.created_at)}</td>
                       <td>
-                        {order.status === 'submitted' && (
-                          <div style={{ display: 'flex', gap: '4px' }}>
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                          {order.status === 'submitted' && (
+                            <>
                             <button 
                               type="button" 
                               className="btn-sm btn-success" 
@@ -351,8 +413,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
                             >
                               {actionLoading === order.id ? '...' : '✕'}
                             </button>
-                          </div>
-                        )}
+                            </>
+                          )}
+                          {order.status !== 'deleted' && (
+                            <button
+                              type="button"
+                              className="btn-sm btn-danger"
+                              onClick={() => handleOrderDelete(order.id)}
+                              disabled={actionLoading === order.id}
+                            >
+                              Удалить
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )) : (
@@ -419,7 +492,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
 
         {activeTab === 'services' && (
           <div className="admin-table-container">
-            <h2 className="admin-section-title">Товары</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+              <div>
+                <h2 className="admin-section-title">Товары</h2>
+                <p style={{ margin: '6px 0 0', color: '#64748b', fontSize: 14 }}>
+                  Активные товары видны в каталоге, скрытые и удалённые не показываются покупателям.
+                </p>
+              </div>
+              <button type="button" className="btn btn-secondary" onClick={fetchAdminData}>Обновить</button>
+            </div>
             <table className="admin-table">
               <thead>
                 <tr>
@@ -428,6 +509,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
                   <th>Категория</th>
                   <th>Цена</th>
                   <th>Статус</th>
+                  <th>Действия</th>
                 </tr>
               </thead>
               <tbody>
@@ -448,8 +530,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser }) =
                           fontSize: '12px' 
                         }}
                       >
-                        {getStatusText(service.status)}
+                        {getServiceStatusText(service.status)}
                       </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {service.status !== 'active' && (
+                          <button
+                            type="button"
+                            className="btn-sm btn-success"
+                            disabled={actionLoading === service.id}
+                            onClick={() => handleServiceStatusChange(service.id, 'active')}
+                          >
+                            Показать
+                          </button>
+                        )}
+                        {service.status === 'active' && (
+                          <button
+                            type="button"
+                            className="btn-sm btn-secondary"
+                            disabled={actionLoading === service.id}
+                            onClick={() => handleServiceStatusChange(service.id, 'inactive')}
+                          >
+                            Скрыть
+                          </button>
+                        )}
+                        {service.status !== 'deleted' && (
+                          <button
+                            type="button"
+                            className="btn-sm btn-danger"
+                            disabled={actionLoading === service.id}
+                            onClick={() => handleServiceDelete(service.id)}
+                          >
+                            Удалить
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

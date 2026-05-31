@@ -6,6 +6,8 @@ export interface FilterState {
   category: string;
   priceFrom: number | null;
   priceTo: number | null;
+  dateFrom: string;
+  dateTo: string;
 }
 
 const initialState: FilterState = {
@@ -13,6 +15,8 @@ const initialState: FilterState = {
   category: '',
   priceFrom: null,
   priceTo: null,
+  dateFrom: '',
+  dateTo: '',
 };
 
 export const filterSlice = createSlice({
