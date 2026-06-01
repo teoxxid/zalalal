@@ -7,7 +7,12 @@ import App from './App';
 import './style.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-if (import.meta.env.DEV && 'serviceWorker' in navigator) {
+const shouldUseServiceWorker =
+  import.meta.env.MODE === 'mock' ||
+  import.meta.env.VITE_APP_MODE === 'mock' ||
+  import.meta.env.VITE_ENABLE_PWA === 'true';
+
+if (!shouldUseServiceWorker && 'serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then((registrations) => {
     registrations.forEach((registration) => registration.unregister());
   });

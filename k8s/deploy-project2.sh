@@ -30,7 +30,12 @@ echo "Building backend image..."
 sudo docker build -t "${BACKEND_IMAGE}" "${ROOT_DIR}/backend"
 
 echo "Building frontend image..."
-sudo docker build --build-arg VITE_BASE_PATH=/ -t "${FRONTEND_IMAGE}" "${ROOT_DIR}/frontend"
+sudo docker build \
+  --build-arg VITE_BASE_PATH=/ \
+  --build-arg VITE_API_TARGET= \
+  --build-arg VITE_ENABLE_PWA=false \
+  -t "${FRONTEND_IMAGE}" \
+  "${ROOT_DIR}/frontend"
 
 echo "Importing images into k3s containerd..."
 sudo mkdir -p "${IMAGE_DIR}"

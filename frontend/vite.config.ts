@@ -8,12 +8,13 @@ export default defineConfig(({ mode }) => {
   const apiTarget = (env.VITE_API_TARGET || 'http://localhost:8000').replace(/["']/g, '').replace(/\/+$/, '');
   const isMockBuild = env.VITE_APP_MODE === 'mock' || mode === 'mock';
   const basePath = env.VITE_BASE_PATH || (isMockBuild ? '/zalalal/' : '/');
+  const enablePwa = isMockBuild || env.VITE_ENABLE_PWA === 'true';
 
   return {
   base: basePath,
   plugins: [
     react(),
-    VitePWA({
+    enablePwa && VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
@@ -59,7 +60,7 @@ export default defineConfig(({ mode }) => {
       }
     }),
     basicSsl() // Плагин сам включает HTTPS
-  ],
+  ].filter(Boolean),
   server: {
     port: 5173,
     proxy: {
@@ -82,6 +83,7 @@ export default defineConfig(({ mode }) => {
   },
   build: {
     outDir: 'dist',
+    emptyOutDir: true,
     sourcemap: true,
     rollupOptions: {
       output: {
