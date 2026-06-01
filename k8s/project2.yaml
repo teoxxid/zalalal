@@ -277,6 +277,8 @@ metadata:
   namespace: marketplace
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: backend
@@ -285,6 +287,7 @@ spec:
       labels:
         app: backend
     spec:
+      terminationGracePeriodSeconds: 10
       initContainers:
         - name: migrate-seed
           image: voltmarket-backend:project2
@@ -329,12 +332,8 @@ spec:
             - secretRef:
                 name: marketplace-secrets
           readinessProbe:
-            httpGet:
-              path: /api/services/
+            tcpSocket:
               port: 8000
-              httpHeaders:
-                - name: Host
-                  value: localhost
             initialDelaySeconds: 10
             periodSeconds: 10
           volumeMounts:
