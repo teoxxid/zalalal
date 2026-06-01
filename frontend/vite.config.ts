@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = { ...loadEnv(mode, process.cwd(), ''), ...process.env };
   const apiTarget = (env.VITE_API_TARGET || 'http://localhost:8000').replace(/["']/g, '').replace(/\/+$/, '');
   const isMockBuild = env.VITE_APP_MODE === 'mock' || mode === 'mock';
   const basePath = env.VITE_BASE_PATH || (isMockBuild ? '/zalalal/' : '/');

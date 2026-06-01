@@ -44,7 +44,7 @@ export const api = axios.create({
 const getCSRFToken = (): string | null => {
   const cookie = document.cookie
     .split('; ')
-    .find((row) => row.startsWith('csrftoken='));
+    .find((row) => row.startsWith('csrftoken=') || row.startsWith('project2_csrftoken='));
   
   if (!cookie) return null;
   return decodeURIComponent(cookie.split('=')[1]);

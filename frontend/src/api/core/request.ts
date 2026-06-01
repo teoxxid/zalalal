@@ -156,7 +156,7 @@ export const getHeaders = async (config: OpenAPIConfig, options: ApiRequestOptio
 
     const csrfToken = document.cookie
         .split('; ')
-        .find(row => row.startsWith('csrftoken='))
+        .find(row => row.startsWith('csrftoken=') || row.startsWith('project2_csrftoken='))
         ?.split('=')[1];
 
     const headers = Object.entries({

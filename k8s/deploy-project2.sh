@@ -45,6 +45,9 @@ sed "s#__PROJECT_ROOT__#${ROOT_DIR}#g" "${ROOT_DIR}/k8s/project2.yaml" > "${REND
 echo "Applying Kubernetes resources..."
 kubectl apply -f "${RENDERED_MANIFEST}"
 
+echo "Restarting app deployments to pick up freshly imported local images..."
+kubectl -n "${NAMESPACE}" rollout restart deployment/backend deployment/frontend
+
 echo "Waiting for rollout..."
 kubectl -n "${NAMESPACE}" rollout status deployment/postgres --timeout=180s
 kubectl -n "${NAMESPACE}" rollout status deployment/redis --timeout=180s
