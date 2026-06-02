@@ -7,6 +7,7 @@ import { showNotification } from '../store/slices/uiSlice';
 import { setFilters, clearFilters } from '../store/slices/filterSlice';
 import Loader from '../components/Loader';
 import { fetchServices as fetchServicesFromApi, MOCK_SERVICES, type Service } from '../services/serviceFetch';
+import { placeholderAssetUrl } from '../services/mediaAssets';
 
 const ServiceList: React.FC = () => {
   const navigate = useNavigate();
@@ -342,12 +343,12 @@ const ServiceList: React.FC = () => {
             >
               <div className="product-image-wrapper">
                 <img
-                  src={service.image_url || '/placeholder.svg'}
+                  src={service.image_url || placeholderAssetUrl}
                   alt={service.name}
                   className="product-image"
                   loading="lazy"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/placeholder.svg';
+                    (e.target as HTMLImageElement).src = placeholderAssetUrl;
                   }}
                 />
               </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Button } from 'react-bootstrap';
+import { placeholderAssetUrl } from '../services/mediaAssets';
 
 // 🔹 Интерфейс прямо здесь — никаких импортов не нужно!
 interface Service {
@@ -45,12 +46,11 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({ service, onAddToCart }
       <a href={serviceUrl} style={{ textDecoration: 'none', color: 'inherit' }}>
         <Card.Img
           variant="top"
-          src={service.image_url || 'https://via.placeholder.com/300x200?text=No+Image'}
+          src={service.image_url || placeholderAssetUrl}
           alt={service.name}
           style={{ height: 200, objectFit: 'cover' }}
           onError={(e) => {
-            (e.target as HTMLImageElement).src =
-              'https://via.placeholder.com/300x200?text=No+Image';
+            (e.target as HTMLImageElement).src = placeholderAssetUrl;
           }}
         />
       </a>

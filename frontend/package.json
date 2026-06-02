@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "build:mock": "node scripts/copy-minio-assets.mjs && tsc -b && vite build --mode mock",
+    "build": "node scripts/clean-dist.mjs && tsc -b && vite build",
+    "build:mock": "node scripts/clean-dist.mjs && node scripts/copy-minio-assets.mjs && tsc -b && vite build --mode mock",
     "preview": "vite preview",
     "lint": "eslint .",
     "deploy": "npm run build:mock && npx gh-pages -d dist",

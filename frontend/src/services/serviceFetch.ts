@@ -128,12 +128,28 @@ export const MOCK_SERVICES: Service[] = [
   },
 ];
 
+const hasBrokenPlaceholder = (url?: string | null) =>
+  !url || url === '/placeholder.svg' || url.endsWith('/placeholder.svg');
+
+const hydrateStoredMockServices = (services: Service[]): Service[] => {
+  return services.map((service) => {
+    const seeded = MOCK_SERVICES.find((item) => item.id === Number(service.id));
+    if (!seeded) return service;
+    return {
+      ...seeded,
+      ...service,
+      image_url: hasBrokenPlaceholder(service.image_url) ? seeded.image_url : service.image_url,
+      video_url: hasBrokenPlaceholder(service.video_url) ? seeded.video_url : service.video_url,
+    };
+  });
+};
+
 const readMockServices = (): Service[] => {
   try {
     const raw = localStorage.getItem('voltmarket_mock_services');
     if (!raw) return MOCK_SERVICES;
     const services = JSON.parse(raw);
-    return Array.isArray(services) && services.length ? services : MOCK_SERVICES;
+    return Array.isArray(services) && services.length ? hydrateStoredMockServices(services) : MOCK_SERVICES;
   } catch {
     return MOCK_SERVICES;
   }

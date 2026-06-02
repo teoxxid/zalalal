@@ -6,6 +6,7 @@ import { clearCart } from '../store/slices/cartSlice';
 import { showNotification } from '../store/slices/uiSlice';
 import { submitOrderThunk, updateCartItemThunk, removeFromCartThunk } from '../store/thunks/orderThunks';
 import { deleteMockOrder, isStaticMockMode } from '../services/mockBackend';
+import { placeholderAssetUrl } from '../services/mediaAssets';
 
 const Cart: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -124,7 +125,7 @@ const Cart: React.FC = () => {
                         src={item.image_url} 
                         alt={item.name}
                         className="cart-item-image"
-                        onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                        onError={(e) => { (e.target as HTMLImageElement).src = placeholderAssetUrl; }}
                       />
                     </div>
                   )}

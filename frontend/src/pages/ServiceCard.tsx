@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { placeholderAssetUrl } from '../services/mediaAssets';
 
 export interface Service {
   id: number;
@@ -19,7 +20,7 @@ export interface ServiceCardProps {
 
 const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) => {
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    e.currentTarget.src = '/placeholder.svg';
+    e.currentTarget.src = placeholderAssetUrl;
   };
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -38,7 +39,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) => {
       >
         <div className="service-image-wrapper">
           <img 
-            src={service.image_url || '/placeholder.svg'}
+            src={service.image_url || placeholderAssetUrl}
             alt={service.name}
             onError={handleImageError}
             loading="lazy"

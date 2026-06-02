@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toMediaUrl } from '../services/api';
 import { fetchServices, MOCK_SERVICES, type Service } from '../services/serviceFetch';
-import { publicAssetUrl } from '../services/mediaAssets';
+import { placeholderAssetUrl, publicAssetUrl } from '../services/mediaAssets';
 
 interface HomePageProps {
   user: { username: string; role: 'USER' | 'ADMIN' } | null;
@@ -74,10 +74,10 @@ const HomePage: React.FC<HomePageProps> = ({ user, services: propServices }) => 
                 <Link to={`/service/${service.id}/`} className="video-thumbnail-link">
                   <div className="video-thumbnail">
                     <img
-                      src={service.image_url || '/placeholder.svg'}
+                      src={service.image_url || placeholderAssetUrl}
                       alt={service.name}
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/placeholder.svg';
+                        (e.target as HTMLImageElement).src = placeholderAssetUrl;
                       }}
                       loading="lazy"
                     />

@@ -155,9 +155,27 @@ const decorateService = (service: Service): Service => ({
   status: service.status || 'active',
 });
 
+const hasBrokenPlaceholder = (url?: string | null) =>
+  !url || url === '/placeholder.svg' || url.endsWith('/placeholder.svg');
+
+const hydrateStoredService = (service: Service): Service => {
+  const seeded = MOCK_SERVICES.find((item) => item.id === Number(service.id));
+  if (!seeded) return decorateService(service);
+  return decorateService({
+    ...seeded,
+    ...service,
+    image_url: hasBrokenPlaceholder(service.image_url) ? seeded.image_url : service.image_url,
+    video_url: hasBrokenPlaceholder(service.video_url) ? seeded.video_url : service.video_url,
+  });
+};
+
 export const getMockServices = (): Service[] => {
   const stored = readJson<Service[]>(SERVICES_KEY, []);
-  if (stored.length > 0) return stored;
+  if (stored.length > 0) {
+    const hydrated = stored.map(hydrateStoredService);
+    writeJson(SERVICES_KEY, hydrated);
+    return hydrated;
+  }
   const seeded = MOCK_SERVICES.map(decorateService);
   writeJson(SERVICES_KEY, seeded);
   return seeded;

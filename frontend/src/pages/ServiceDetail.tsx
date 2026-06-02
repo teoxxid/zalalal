@@ -6,6 +6,7 @@ import { showNotification } from '../store/slices/uiSlice';
 import { addToCartThunk, fetchCartIconThunk } from '../store/thunks/orderThunks';
 import { fetchServiceById, fetchServices, MOCK_SERVICES, type Service } from '../services/serviceFetch';
 import { cosineSimilarity, getEmbedding } from '../utils/similarity';
+import { placeholderAssetUrl } from '../services/mediaAssets';
 
 const ServiceDetail: React.FC = () => {
   const { serviceId } = useParams<{ serviceId: string }>();
@@ -182,10 +183,10 @@ const ServiceDetail: React.FC = () => {
               </video>
             ) : (
               <img 
-                src={service.image_url || '/placeholder.svg'} 
+                src={service.image_url || placeholderAssetUrl} 
                 alt={service.name} 
                 className="product-detail-media"
-                onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                onError={(e) => { (e.target as HTMLImageElement).src = placeholderAssetUrl; }}
               />
             )}
             {service.video_url && service.image_url && (
@@ -296,11 +297,11 @@ const ServiceDetail: React.FC = () => {
               >
                 <div className="product-image-wrapper">
                   <img
-                    src={item.image_url || '/placeholder.svg'}
+                    src={item.image_url || placeholderAssetUrl}
                     alt={item.name}
                     className="product-image"
                     loading="lazy"
-                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                    onError={(e) => { (e.target as HTMLImageElement).src = placeholderAssetUrl; }}
                   />
                 </div>
                 <div className="product-info">

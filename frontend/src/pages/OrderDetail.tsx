@@ -14,6 +14,7 @@ import {
 import { showNotification } from '../store/slices/uiSlice';
 import type { Order } from '../store/slices/ordersSlice';
 import Loader from '../components/Loader';
+import { placeholderAssetUrl } from '../services/mediaAssets';
 
 interface OrderItem {
   id: number;
@@ -186,10 +187,10 @@ const OrderDetail: React.FC = () => {
               <Link to={`/service/${getServiceId(item)}/`} className="order-item-link">
                 <div className="order-item-image-wrapper">
                   <img
-                    src={item.service?.image_url || '/placeholder.svg'}
+                    src={item.service?.image_url || placeholderAssetUrl}
                     alt={getItemName(item)}
                     className="order-item-image"
-                    onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                    onError={(e) => { (e.target as HTMLImageElement).src = placeholderAssetUrl; }}
                   />
                 </div>
                 <div className="order-item-info">
