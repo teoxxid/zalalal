@@ -7,8 +7,9 @@ export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ''), ...process.env };
   const apiTarget = (env.VITE_API_TARGET || 'http://localhost:8000').replace(/["']/g, '').replace(/\/+$/, '');
   const isMockBuild = env.VITE_APP_MODE === 'mock' || mode === 'mock';
-  const basePath = env.VITE_BASE_PATH || (isMockBuild ? '/zalalal/' : '/');
+  const basePath = isMockBuild ? '/zalalal/' : env.VITE_BASE_PATH || '/';
   const enablePwa = isMockBuild || env.VITE_ENABLE_PWA === 'true';
+  const pwaBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
 
   return {
   base: basePath,
@@ -24,16 +25,17 @@ export default defineConfig(({ mode }) => {
         theme_color: '#005bff',
         background_color: '#ffffff',
         display: 'standalone',
-        start_url: '/',
+        start_url: pwaBasePath,
+        scope: pwaBasePath,
         icons: [
           {
-            src: '/icon-192.png',
+            src: `${pwaBasePath}icon-192.png`,
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable'
           },
           {
-            src: '/icon-512.png',
+            src: `${pwaBasePath}icon-512.png`,
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'

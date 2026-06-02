@@ -53,6 +53,19 @@ jobs:
           test -d frontend/dist/assets
           test -f frontend/dist/minio-files/AppleiPhone16Pro128.jpg
           test -f frontend/dist/minio-files/iphone16pro.mp4
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const html = fs.readFileSync('frontend/dist/index.html', 'utf8');
+          const refs = [...html.matchAll(/(?:src|href)="\/zalalal\/([^"]+)"/g)].map((match) => match[1]);
+          const missing = refs.filter((ref) => !fs.existsSync(path.join('frontend/dist', ref)));
+          if (missing.length) {
+            console.error('Missing referenced files in Pages artifact:');
+            for (const item of missing) console.error(`- ${item}`);
+            process.exit(1);
+          }
+          console.log(`Verified ${refs.length} referenced Pages files.`);
+          NODE
           echo "Pages artifact:"
           find frontend/dist -maxdepth 2 -type f | sort | head -40
 
