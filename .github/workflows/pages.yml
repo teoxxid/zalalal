@@ -44,7 +44,10 @@ jobs:
         run: npm run build:mock
 
       - name: Prepare SPA fallback
-        run: cp frontend/dist/index.html frontend/dist/404.html
+        run: |
+          cp frontend/dist/index.html frontend/dist/404.html
+          mkdir -p frontend/dist/zalalal
+          find frontend/dist -mindepth 1 -maxdepth 1 ! -name zalalal -exec cp -R {} frontend/dist/zalalal/ \;
 
       - name: Verify Pages artifact
         run: |
@@ -53,14 +56,22 @@ jobs:
           test -d frontend/dist/assets
           test -f frontend/dist/minio-files/AppleiPhone16Pro128.jpg
           test -f frontend/dist/minio-files/iphone16pro.mp4
+          test -f frontend/dist/zalalal/index.html
+          test -f frontend/dist/zalalal/registerSW.js
+          test -f frontend/dist/zalalal/assets/vendor-Cr4ff58u.js
+          test -f frontend/dist/zalalal/minio-files/AppleiPhone16Pro128.jpg
           node <<'NODE'
           const fs = require('fs');
           const path = require('path');
           const html = fs.readFileSync('frontend/dist/index.html', 'utf8');
           const refs = [...html.matchAll(/(?:src|href)="\/zalalal\/([^"]+)"/g)].map((match) => match[1]);
-          const missing = refs.filter((ref) => !fs.existsSync(path.join('frontend/dist', ref)));
+          const missing = refs.filter((ref) => {
+            const projectSitePath = path.join('frontend/dist', ref);
+            const userSitePath = path.join('frontend/dist/zalalal', ref);
+            return !fs.existsSync(projectSitePath) || !fs.existsSync(userSitePath);
+          });
           if (missing.length) {
-            console.error('Missing referenced files in Pages artifact:');
+            console.error('Missing referenced files in root or nested Pages artifact:');
             for (const item of missing) console.error(`- ${item}`);
             process.exit(1);
           }
