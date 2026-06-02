@@ -14,6 +14,7 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  PAGES_BASE_PATH: /voltmarket-pages/
 
 concurrency:
   group: pages
@@ -41,6 +42,8 @@ jobs:
 
       - name: Build mock frontend
         working-directory: frontend
+        env:
+          VITE_BASE_PATH: ${{ env.PAGES_BASE_PATH }}
         run: npm run build:mock
 
       - name: Prepare SPA fallback
@@ -48,8 +51,6 @@ jobs:
           cp frontend/dist/index.html frontend/dist/404.html
           touch frontend/dist/.nojekyll
           echo "voltmarket-pages ${GITHUB_SHA}" > frontend/dist/pages-health.txt
-          mkdir -p frontend/dist/zalalal
-          find frontend/dist -mindepth 1 -maxdepth 1 ! -name zalalal -exec cp -R {} frontend/dist/zalalal/ \;
 
       - name: Verify Pages artifact
         run: |
@@ -60,23 +61,21 @@ jobs:
           test -d frontend/dist/assets
           test -f frontend/dist/minio-files/AppleiPhone16Pro128.jpg
           test -f frontend/dist/minio-files/iphone16pro.mp4
-          test -f frontend/dist/zalalal/index.html
-          test -f frontend/dist/zalalal/registerSW.js
-          test -f frontend/dist/zalalal/assets/vendor-Cr4ff58u.js
-          test -f frontend/dist/zalalal/minio-files/AppleiPhone16Pro128.jpg
           node <<'NODE'
           const fs = require('fs');
           const path = require('path');
+          const basePath = process.env.PAGES_BASE_PATH || '/';
+          const escapedBasePath = basePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
           const html = fs.readFileSync('frontend/dist/index.html', 'utf8');
-          const refs = [...html.matchAll(/(?:src|href)="\/zalalal\/([^"]+)"/g)].map((match) => match[1]);
-          const missing = refs.filter((ref) => {
-            const projectSitePath = path.join('frontend/dist', ref);
-            const userSitePath = path.join('frontend/dist/zalalal', ref);
-            return !fs.existsSync(projectSitePath) || !fs.existsSync(userSitePath);
-          });
+          const refs = [...html.matchAll(new RegExp(`(?:src|href)="${escapedBasePath}([^"]+)"`, 'g'))].map((match) => match[1]);
+          const missing = refs.filter((ref) => !fs.existsSync(path.join('frontend/dist', ref)));
           if (missing.length) {
-            console.error('Missing referenced files in root or nested Pages artifact:');
+            console.error('Missing referenced files in Pages artifact:');
             for (const item of missing) console.error(`- ${item}`);
+            process.exit(1);
+          }
+          if (!html.includes(basePath)) {
+            console.error(`index.html does not contain expected base path: ${basePath}`);
             process.exit(1);
           }
           console.log(`Verified ${refs.length} referenced Pages files.`);

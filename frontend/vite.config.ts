@@ -7,7 +7,8 @@ export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ''), ...process.env };
   const apiTarget = (env.VITE_API_TARGET || 'http://localhost:8000').replace(/["']/g, '').replace(/\/+$/, '');
   const isMockBuild = env.VITE_APP_MODE === 'mock' || mode === 'mock';
-  const basePath = isMockBuild ? '/zalalal/' : env.VITE_BASE_PATH || '/';
+  const explicitBasePath = process.env.VITE_BASE_PATH;
+  const basePath = isMockBuild ? explicitBasePath || '/zalalal/' : env.VITE_BASE_PATH || '/';
   const enablePwa = isMockBuild || env.VITE_ENABLE_PWA === 'true';
   const pwaBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
 
