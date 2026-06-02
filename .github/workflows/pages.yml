@@ -46,6 +46,8 @@ jobs:
       - name: Prepare SPA fallback
         run: |
           cp frontend/dist/index.html frontend/dist/404.html
+          touch frontend/dist/.nojekyll
+          echo "voltmarket-pages ${GITHUB_SHA}" > frontend/dist/pages-health.txt
           mkdir -p frontend/dist/zalalal
           find frontend/dist -mindepth 1 -maxdepth 1 ! -name zalalal -exec cp -R {} frontend/dist/zalalal/ \;
 
@@ -53,6 +55,8 @@ jobs:
         run: |
           test -f frontend/dist/index.html
           test -f frontend/dist/404.html
+          test -f frontend/dist/.nojekyll
+          test -f frontend/dist/pages-health.txt
           test -d frontend/dist/assets
           test -f frontend/dist/minio-files/AppleiPhone16Pro128.jpg
           test -f frontend/dist/minio-files/iphone16pro.mp4
